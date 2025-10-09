@@ -84,7 +84,7 @@ module master_switch #( // connect M masters and output 3 request channels to ar
     input  [ID_WIDTH-1:0]           busRId_i,           // Read data ID from slaves
     input  [1:0]                    busRResp_i,         // Read data response from slaves
     input  logic                    busRLast_i,         // Read data last from slaves
-    
+
     // B (Write Response) arbitrated channel bus
     input  logic [N-1:0]            busBVld_i,          // Write response valid from slaves
     output logic [M-1:0]            busBRdy_o,          // Write response ready to slaves
@@ -108,13 +108,13 @@ generate
         assign aw_target[i] = m_axi_awaddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_N];
         // W channel uses same target as AW
         assign w_target[i] = m_axi_awaddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_N];
-        
+
         // Pack AR channel data
         assign ar_packed_data[i] = {m_axi_araddr[i], m_axi_arid[i], m_axi_arlen[i], m_axi_arsize[i], m_axi_arburst[i]};
-        
+
         // Pack AW channel data
         assign aw_packed_data[i] = {m_axi_awaddr[i], m_axi_awid[i], m_axi_awlen[i], m_axi_awsize[i], m_axi_awburst[i]};
-        
+
         // Pack W channel data
         assign w_packed_data[i] = {m_axi_wdata[i], m_axi_wstrb[i], m_axi_wlast[i]};
     end
