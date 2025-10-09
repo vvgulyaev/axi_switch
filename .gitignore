@@ -1,2 +1,6 @@
 /incoming
 /w/Projects/Vishare/axi_switch/incoming
+*.mpf
+*.log
+/sim/work
+/rtl/old
