@@ -136,6 +136,11 @@ logic [LOG_M-1:0] bid_dest;
 reg [LOG_N-1:0] rtargetVld_r, wtargetVld_r;  // Valid signals for target buffers
 reg [LOG_M-1:0] rtargetBuf_r[N], wtargetBuf_r[N];  // Target master matrix
 
+logic [ID_WIDTH-1:0]            busAWId[1];
+logic [LOG_M-1:0]               busAWSrc[1];
+logic [ID_WIDTH-1:0]            busARId[1];
+logic [LOG_M-1:0]               busARSrc[1];
+
 // Connect registered signals to outputs
 always_comb begin
     for (int i = 0; i < N; i++) begin
@@ -165,6 +170,12 @@ always_comb begin
             rtargetBuf_r[r] = rid_dest;
         end*/
     end
+
+    //avoid compilation errors at connecting to rid and bid tables
+    busAWId[0] = busAWId_i;
+    busAWSrc[0] = busAWSrc_i;
+    busARId[0] = busARId_i;
+    busARSrc[0] = busARSrc_i;
 end
 
 // Forward valids of requesting channels to slave requesting channels and ready back
@@ -239,8 +250,8 @@ end
         .clk(clk),
         .rstn(rstn),
         .we_i(busARVld_i!=0),     // Write on valid AR transaction
-        .wadr_i(busARId_i),     // Address = transaction ID
-        .wdat_i(busARSrc_i),    // Data = source master index
+        .wadr_i(busARId),     // Address = transaction ID
+        .wdat_i(busARSrc),    // Data = source master index
         .re_i(rid_re),     // Read when lookup requested
         .radr_i(s_axi_rid),     // Address = response ID
         .rdat_o(rid_dest),      // Data = destination master
@@ -257,8 +268,8 @@ end
         .clk(clk),
         .rstn(rstn),
         .we_i(busAWVld_i!=0),     // Write on valid AW transaction
-        .wadr_i(busAWId_i),     // Address = transaction ID
-        .wdat_i(busAWSrc_i),    // Data = source master index
+        .wadr_i(busAWId),     // Address = transaction ID
+        .wdat_i(busAWSrc),    // Data = source master index
         .re_i(s_axi_bvalid),     // Read when lookup requested
         .radr_i(s_axi_bid),     // Address = response ID
         .rdat_o(bid_dest),      // Data = destination master
