@@ -1,24 +1,24 @@
 // axi_switch.sv - Top-level wrapper connecting master and slave switches for AXI4 crossbar
 
 /*
-axi_switch 
+axi_switch
     - master_switch: handles AR, AW, W channels from masters to slaves
         - 3 channel aribiter instances inside
     - slave_switch: handles R, B channels from slaves to masters
         - 2 channel arbiter instances inside
-        - 2 arbitrated mutliple-port memory for RID and BID lookup tables 
+        - 2 arbitrated mutliple-port memory for RID and BID lookup tables
 */
 
 module axi_switch #(
     // Number of masters and slaves
     parameter int M = 4,                       // Number of masters
     parameter int N = 4,                       // Number of slaves
-    
+
     // AXI parameters
     parameter int AW = 32,                     // Address width
     parameter int DW = 64,                     // Data width
     parameter int IDW = 4,                     // ID width
-    
+
     // Derived parameters - do not override
     parameter int LOG_M = (M > 1) ? $clog2(M) : 1,
     parameter int LOG_N = (N > 1) ? $clog2(N) : 1
@@ -26,84 +26,84 @@ module axi_switch #(
     // Clock and reset
     input  logic                   clk,
     input  logic                   rstn,
-    
+
     // Master ports (M masters)
     // AR channel
-    input  logic [M-1:0]           m_axi_arvalid,
-    output logic [M-1:0]           m_axi_arready,
+    input  logic [M-1:0]    m_axi_arvalid,
+    output logic [M-1:0]    m_axi_arready,
     input  logic [AW-1:0]   m_axi_araddr[M],
     input  logic [IDW-1:0]  m_axi_arid[M],
     input  logic [7:0]      m_axi_arlen[M],
     input  logic [2:0]      m_axi_arsize[M],
     input  logic [1:0]      m_axi_arburst[M],
-    
+
     // AW channel
-    input  logic [M-1:0]           m_axi_awvalid,
-    output logic [M-1:0]           m_axi_awready,
+    input  logic [M-1:0]    m_axi_awvalid,
+    output logic [M-1:0]    m_axi_awready,
     input  logic [AW-1:0]   m_axi_awaddr[M],
     input  logic [IDW-1:0]  m_axi_awid[M],
     input  logic [7:0]      m_axi_awlen[M],
     input  logic [2:0]      m_axi_awsize[M],
     input  logic [1:0]      m_axi_awburst[M],
-    
+
     // W channel
-    input  logic [M-1:0]           m_axi_wvalid,
-    output logic [M-1:0]           m_axi_wready,
+    input  logic [M-1:0]    m_axi_wvalid,
+    output logic [M-1:0]    m_axi_wready,
     input  logic [DW-1:0]   m_axi_wdata[M],
     input  logic [DW/8-1:0] m_axi_wstrb[M],
-    input  logic [M-1:0]           m_axi_wlast,
-    
+    input  logic [M-1:0]    m_axi_wlast,
+
     // R channel
-    output logic [M-1:0]           m_axi_rvalid,
-    input  logic [M-1:0]           m_axi_rready,
+    output logic [M-1:0]    m_axi_rvalid,
+    input  logic [M-1:0]    m_axi_rready,
     output logic [DW-1:0]   m_axi_rdata[M],
     output logic [IDW-1:0]  m_axi_rid[M],
     output logic [1:0]      m_axi_rresp[M],
-    output logic [M-1:0]           m_axi_rlast,
-    
+    output logic [M-1:0]    m_axi_rlast,
+
     // B channel
-    output logic [M-1:0]           m_axi_bvalid,
-    input  logic [M-1:0]           m_axi_bready,
+    output logic [M-1:0]    m_axi_bvalid,
+    input  logic [M-1:0]    m_axi_bready,
     output logic [IDW-1:0]  m_axi_bid[M],
     output logic [1:0]      m_axi_bresp[M],
-    
+
     // Slave ports (N slaves)
     // AR channel
-    output logic [N-1:0]           s_axi_arvalid,
-    input  logic [N-1:0]           s_axi_arready,
+    output logic [N-1:0]    s_axi_arvalid,
+    input  logic [N-1:0]    s_axi_arready,
     output logic [AW-1:0]   s_axi_araddr[N],
     output logic [IDW-1:0]  s_axi_arid[N],
     output logic [7:0]      s_axi_arlen[N],
     output logic [2:0]      s_axi_arsize[N],
     output logic [1:0]      s_axi_arburst[N],
-    
+
     // AW channel
-    output logic [N-1:0]           s_axi_awvalid,
-    input  logic [N-1:0]           s_axi_awready,
+    output logic [N-1:0]    s_axi_awvalid,
+    input  logic [N-1:0]    s_axi_awready,
     output logic [AW-1:0]   s_axi_awaddr[N],
     output logic [IDW-1:0]  s_axi_awid[N],
     output logic [7:0]      s_axi_awlen[N],
     output logic [2:0]      s_axi_awsize[N],
     output logic [1:0]      s_axi_awburst[N],
-    
+
     // W channel
-    output logic [N-1:0]           s_axi_wvalid,
-    input  logic [N-1:0]           s_axi_wready,
+    output logic [N-1:0]    s_axi_wvalid,
+    input  logic [N-1:0]    s_axi_wready,
     output logic [DW-1:0]   s_axi_wdata[N],
     output logic [DW/8-1:0] s_axi_wstrb[N],
     output logic            s_axi_wlast[N],
-    
+
     // R channel
-    input  logic [N-1:0]           s_axi_rvalid,
-    output logic [N-1:0]           s_axi_rready,
+    input  logic [N-1:0]    s_axi_rvalid,
+    output logic [N-1:0]    s_axi_rready,
     input  logic [DW-1:0]   s_axi_rdata[N],
     input  logic [IDW-1:0]  s_axi_rid[N],
     input  logic [1:0]      s_axi_rresp[N],
     input  logic            s_axi_rlast[N],
-    
+
     // B channel
-    input  logic [N-1:0]           s_axi_bvalid,
-    output logic [N-1:0]           s_axi_bready,
+    input  logic [N-1:0]    s_axi_bvalid,
+    output logic [N-1:0]    s_axi_bready,
     input  logic [IDW-1:0]  s_axi_bid[N],
     input  logic [1:0]      s_axi_bresp[N]
 );
@@ -114,17 +114,17 @@ module axi_switch #(
     logic [7:0]      m_axi_arlen_u[M];
     logic [2:0]      m_axi_arsize_u[M];
     logic [1:0]      m_axi_arburst_u[M];
-    
+
     logic [AW-1:0]   m_axi_awaddr_u[M];
     logic [IDW-1:0]  m_axi_awid_u[M];
     logic [7:0]      m_axi_awlen_u[M];
     logic [2:0]      m_axi_awsize_u[M];
     logic [1:0]      m_axi_awburst_u[M];
-    
+
     logic [DW-1:0]   m_axi_wdata_u[M];
     logic [DW/8-1:0] m_axi_wstrb_u[M];
     logic            m_axi_wlast_u[M];
-    
+
     logic [DW-1:0]   s_axi_rdata_u[N];
     logic [IDW-1:0]  s_axi_rid_u[N];
     logic [1:0]      s_axi_rresp_u[N];
@@ -139,19 +139,19 @@ module axi_switch #(
     logic            m_axi_rlast_unpacked[M];
     logic [1:0]      m_axi_bresp_unpacked[M];
     logic [IDW-1:0]  m_axi_bid_unpacked[M];
-    
+
     logic [AW-1:0]   s_axi_araddr_unpacked[N];
     logic [IDW-1:0]  s_axi_arid_unpacked[N];
     logic [7:0]      s_axi_arlen_unpacked[N];
     logic [2:0]      s_axi_arsize_unpacked[N];
     logic [1:0]      s_axi_arburst_unpacked[N];
-    
+
     logic [AW-1:0]   s_axi_awaddr_unpacked[N];
     logic [IDW-1:0]  s_axi_awid_unpacked[N];
     logic [7:0]      s_axi_awlen_unpacked[N];
     logic [2:0]      s_axi_awsize_unpacked[N];
     logic [1:0]      s_axi_awburst_unpacked[N];
-    
+
     logic [DW-1:0]   s_axi_wdata_unpacked[N];
     logic [DW/8-1:0] s_axi_wstrb_unpacked[N];
     logic            s_axi_wlast_unpacked[N];
@@ -166,17 +166,17 @@ module axi_switch #(
             assign m_axi_arlen_u[i] = m_axi_arlen[i];
             assign m_axi_arsize_u[i] = m_axi_arsize[i];
             assign m_axi_arburst_u[i] = m_axi_arburst[i];
-            
+
             assign m_axi_awaddr_u[i] = m_axi_awaddr[i];
             assign m_axi_awid_u[i] = m_axi_awid[i];
             assign m_axi_awlen_u[i] = m_axi_awlen[i];
             assign m_axi_awsize_u[i] = m_axi_awsize[i];
             assign m_axi_awburst_u[i] = m_axi_awburst[i];
-            
+
             assign m_axi_wdata_u[i] = m_axi_wdata[i];
             assign m_axi_wstrb_u[i] = m_axi_wstrb[i];
             assign m_axi_wlast_u[i] = m_axi_wlast[i];
-            
+
             // Pack master outputs
             assign m_axi_rdata[i] = m_axi_rdata_unpacked[i];
             assign m_axi_rid[i] = m_axi_rid_unpacked[i];
@@ -185,7 +185,7 @@ module axi_switch #(
             assign m_axi_bresp[i] = m_axi_bresp_unpacked[i];
             assign m_axi_bid[i] = m_axi_bid_unpacked[i];
         end
-        
+
         for (i = 0; i < N; i++) begin : gen_slave_convert
             // Pack slave outputs
             assign s_axi_araddr[i] = s_axi_araddr_unpacked[i];
@@ -193,17 +193,17 @@ module axi_switch #(
             assign s_axi_arlen[i] = s_axi_arlen_unpacked[i];
             assign s_axi_arsize[i] = s_axi_arsize_unpacked[i];
             assign s_axi_arburst[i] = s_axi_arburst_unpacked[i];
-            
+
             assign s_axi_awaddr[i] = s_axi_awaddr_unpacked[i];
             assign s_axi_awid[i] = s_axi_awid_unpacked[i];
             assign s_axi_awlen[i] = s_axi_awlen_unpacked[i];
             assign s_axi_awsize[i] = s_axi_awsize_unpacked[i];
             assign s_axi_awburst[i] = s_axi_awburst_unpacked[i];
-            
+
             assign s_axi_wdata[i] = s_axi_wdata_unpacked[i];
             assign s_axi_wstrb[i] = s_axi_wstrb_unpacked[i];
             assign s_axi_wlast[i] = s_axi_wlast_unpacked[i];
-            
+
             // Unpack slave inputs
             assign s_axi_rdata_u[i] = s_axi_rdata[i];
             assign s_axi_rid_u[i] = s_axi_rid[i];
@@ -267,108 +267,108 @@ module axi_switch #(
 
     // Instantiate master_switch (handles AR, AW, W channels from masters to slaves)
     master_switch #(
-        .M(M),
-        .N(N),
-        .WIDTH(DW),
-        .ID_WIDTH(IDW),
-        .ADDR_WIDTH(AW)
+        .M          (M),
+        .N          (N),
+        .WIDTH      (DW),
+        .ID_WIDTH   (IDW),
+        .ADDR_WIDTH (AW)
     ) u_master_switch (
-        .clk(clk),
-        .rstn(rstn),        
+        .clk                (clk),
+        .rstn               (rstn),
         // Master interfaces
-        .m_axi_arvalid(m_axi_arvalid),
-        .m_axi_arready(m_axi_arready),
-        .m_axi_araddr(m_axi_araddr_u),
-        .m_axi_arid(m_axi_arid_u),
-        .m_axi_arlen(m_axi_arlen_u),
-        .m_axi_arsize(m_axi_arsize_u),
-        .m_axi_arburst(m_axi_arburst_u),
-        
-        .m_axi_awvalid(m_axi_awvalid),
-        .m_axi_awready(m_axi_awready),
-        .m_axi_awaddr(m_axi_awaddr_u),
-        .m_axi_awid(m_axi_awid_u),
-        .m_axi_awlen(m_axi_awlen_u),
-        .m_axi_awsize(m_axi_awsize_u),
-        .m_axi_awburst(m_axi_awburst_u),
-        
-        .m_axi_wvalid(m_axi_wvalid),
-        .m_axi_wready(m_axi_wready),
-        .m_axi_wdata(m_axi_wdata_u),
-        .m_axi_wstrb(m_axi_wstrb_u),
-        .m_axi_wlast(m_axi_wlast_u),
-        
-        .m_axi_rvalid(m_axi_rvalid),
-        .m_axi_rready(m_axi_rready),
-        .m_axi_rdata(m_axi_rdata_unpacked),
-        .m_axi_rid(m_axi_rid_unpacked),
-        .m_axi_rresp(m_axi_rresp_unpacked),
-        .m_axi_rlast(m_axi_rlast_unpacked),
-        
-        .m_axi_bvalid(m_axi_bvalid),
-        .m_axi_bready(m_axi_bready),
-        .m_axi_bid(m_axi_bid_unpacked),
-        .m_axi_bresp(m_axi_bresp_unpacked),
-        
+        .m_axi_arvalid      (m_axi_arvalid),
+        .m_axi_arready      (m_axi_arready),
+        .m_axi_araddr       (m_axi_araddr_u),
+        .m_axi_arid         (m_axi_arid_u),
+        .m_axi_arlen        (m_axi_arlen_u),
+        .m_axi_arsize       (m_axi_arsize_u),
+        .m_axi_arburst      (m_axi_arburst_u),
+
+        .m_axi_awvalid      (m_axi_awvalid),
+        .m_axi_awready      (m_axi_awready),
+        .m_axi_awaddr       (m_axi_awaddr_u),
+        .m_axi_awid         (m_axi_awid_u),
+        .m_axi_awlen        (m_axi_awlen_u),
+        .m_axi_awsize       (m_axi_awsize_u),
+        .m_axi_awburst      (m_axi_awburst_u),
+
+        .m_axi_wvalid       (m_axi_wvalid),
+        .m_axi_wready       (m_axi_wready),
+        .m_axi_wdata        (m_axi_wdata_u),
+        .m_axi_wstrb        (m_axi_wstrb_u),
+        .m_axi_wlast        (m_axi_wlast_u),
+
+        .m_axi_rvalid       (m_axi_rvalid),
+        .m_axi_rready       (m_axi_rready),
+        .m_axi_rdata        (m_axi_rdata_unpacked),
+        .m_axi_rid          (m_axi_rid_unpacked),
+        .m_axi_rresp        (m_axi_rresp_unpacked),
+        .m_axi_rlast        (m_axi_rlast_unpacked),
+
+        .m_axi_bvalid       (m_axi_bvalid),
+        .m_axi_bready       (m_axi_bready),
+        .m_axi_bid          (m_axi_bid_unpacked),
+        .m_axi_bresp        (m_axi_bresp_unpacked),
+
         // Arbitrated channel buses
-        .busARVld_o(busARVld),
-        .busARRdy_i(busARRdy),
-        .busARAddr_o(busARAddr),
-        .busARId_o(busARId),
-        .busARLen_o(busARLen),
-        .busARSz_o(busARSz),
-        .busARBurst_o(busARBurst),
-        .busARSrc_o(busARSrc),
-        
-        .busAWVld_o(busAWVld),
-        .busAWRdy_i(busAWRdy),
-        .busAWAddr_o(busAWAddr),
-        .busAWId_o(busAWId),
-        .busAWLen_o(busAWLen),
-        .busAWSz_o(busAWSz),
-        .busAWBurst_o(busAWBurst),
-        .busAWSrc_o(busAWSrc),
-        
-        .busWVld_o(busWVld),
-        .busWRdy_i(busWRdy),
-        .busWData_o(busWData),
-        .busWStrb_o(busWStrb),
-        .busWLast_o(busWLast),
-        .busWSrc_o(busWSrc),
-        
-        .busRVld_i(busRVld),
-        .busRRdy_o(busRRdy),
-        .busRData_i(busRData),
-        .busRId_i(busRId),
-        .busRResp_i(busRResp),
-        .busRLast_i(busRLast),
-        
-        .busBVld_i(busBVld),
-        .busBRdy_o(busBRdy),
-        .busBId_i(busBId),
-        .busBResp_i(busBResp)
+        .busARVld_o         (busARVld),
+        .busARRdy_i         (busARRdy),
+        .busARAddr_o        (busARAddr),
+        .busARId_o          (busARId),
+        .busARLen_o         (busARLen),
+        .busARSz_o          (busARSz),
+        .busARBurst_o       (busARBurst),
+        .busARSrc_o         (busARSrc),
+
+        .busAWVld_o         (busAWVld),
+        .busAWRdy_i         (busAWRdy),
+        .busAWAddr_o        (busAWAddr),
+        .busAWId_o          (busAWId),
+        .busAWLen_o         (busAWLen),
+        .busAWSz_o          (busAWSz),
+        .busAWBurst_o       (busAWBurst),
+        .busAWSrc_o         (busAWSrc),
+
+        .busWVld_o          (busWVld),
+        .busWRdy_i          (busWRdy),
+        .busWData_o         (busWData),
+        .busWStrb_o         (busWStrb),
+        .busWLast_o         (busWLast),
+        .busWSrc_o          (busWSrc),
+
+        .busRVld_i          (busRVld),
+        .busRRdy_o          (busRRdy),
+        .busRData_i         (busRData),
+        .busRId_i           (busRId),
+        .busRResp_i         (busRResp),
+        .busRLast_i         (busRLast),
+
+        .busBVld_i          (busBVld),
+        .busBRdy_o          (busBRdy),
+        .busBId_i           (busBId),
+        .busBResp_i         (busBResp)
     );
 
     // Instantiate slave_switch (handles R, B channels from slaves to masters)
     slave_switch #(
-        .M(M),
-        .N(N),
-        .WIDTH(DW),
-        .ID_WIDTH(IDW),
-        .ADDR_WIDTH(AW)
+        .M          (M),
+        .N          (N),
+        .WIDTH      (DW),
+        .ID_WIDTH   (IDW),
+        .ADDR_WIDTH (AW)
     ) u_slave_switch (
-        .clk(clk),
-        .rstn(rstn),
-        
+        .clk                (clk),
+        .rstn               (rstn),
+
         // Slave interfaces
-        .s_axi_arvalid(s_axi_arvalid),
-        .s_axi_arready(s_axi_arready),
-        .s_axi_araddr(s_axi_araddr_unpacked),
-        .s_axi_arid(s_axi_arid_unpacked),
-        .s_axi_arlen(s_axi_arlen_unpacked),
+        .s_axi_arvalid      (s_axi_arvalid),
+        .s_axi_arready      (s_axi_arready),
+        .s_axi_araddr       (s_axi_araddr_unpacked),
+        .s_axi_arid         (s_axi_arid_unpacked),
+        .s_axi_arlen        (s_axi_arlen_unpacked),
         .s_axi_arsize(s_axi_arsize_unpacked),
         .s_axi_arburst(s_axi_arburst_unpacked),
-        
+
         .s_axi_awvalid(s_axi_awvalid),
         .s_axi_awready(s_axi_awready),
         .s_axi_awaddr(s_axi_awaddr_unpacked),
@@ -376,25 +376,25 @@ module axi_switch #(
         .s_axi_awlen(s_axi_awlen_unpacked),
         .s_axi_awsize(s_axi_awsize_unpacked),
         .s_axi_awburst(s_axi_awburst_unpacked),
-        
+
         .s_axi_wvalid(s_axi_wvalid),
         .s_axi_wready(s_axi_wready),
         .s_axi_wdata(s_axi_wdata_unpacked),
         .s_axi_wstrb(s_axi_wstrb_unpacked),
         .s_axi_wlast(s_axi_wlast_unpacked),
-        
+
         .s_axi_rvalid(s_axi_rvalid),
         .s_axi_rready(s_axi_rready),
         .s_axi_rdata(s_axi_rdata_u),
         .s_axi_rid(s_axi_rid_u),
         .s_axi_rresp(s_axi_rresp_u),
         .s_axi_rlast(s_axi_rlast_u),
-        
+
         .s_axi_bvalid(s_axi_bvalid),
         .s_axi_bready(s_axi_bready),
         .s_axi_bid(s_axi_bid_u),
         .s_axi_bresp(s_axi_bresp_u),
-        
+
         // Arbitrated channel buses - to be connected properly
         .busARVld_i(busARVld),
         .busARRdy_o(busARRdy),
@@ -405,7 +405,7 @@ module axi_switch #(
         .busARBurst_i(busARBurst),
         .busARSrc_i(busARSrc),
         .busARDst_i(/* Need destination logic */),
-        
+
         .busAWVld_i(busAWVld),
         .busAWRdy_o(busAWRdy),
         .busAWAddr_i(busAWAddr),
@@ -415,7 +415,7 @@ module axi_switch #(
         .busAWBurst_i(busAWBurst),
         .busAWSrc_i(busAWSrc),
         .busAWDst_i(/* Need destination logic */),
-        
+
         .busWVld_i(busWVld),
         .busWRdy_o(busWRdy),
         .busWData_i(busWData),
@@ -423,7 +423,7 @@ module axi_switch #(
         .busWLast_i(busWLast),
         .busWSrc_i(busWSrc),
         .busWDst_i(/* Need destination logic */),
-        
+
         .busRVld_o(busRVld),
         .busRRdy_i(busRRdy),
         .busRData_o(busRData),
@@ -432,7 +432,7 @@ module axi_switch #(
         .busRLast_o(busRLast),
         .busRSrc_o(/* Not used */),
         .busRDst_o(/* Not used */),
-        
+
         .busBVld_o(busBVld),
         .busBRdy_i(busBRdy),
         .busBId_o(busBId),
