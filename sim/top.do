@@ -26,4 +26,4 @@ do wave.do
 run -all
 
 #toggle report -all
-coverage report -html -htmldir covhtmlreport -assert -directive -cvg -code bcefst -threshL 50 -threshH 90
+#coverage report -html -htmldir covhtmlreport -assert -directive -cvg -code bcefst -threshL 50 -threshH 90

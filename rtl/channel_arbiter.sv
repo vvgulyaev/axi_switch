@@ -12,7 +12,7 @@ Create a pair of channel arbiters, namely source arbiter and destination arbiter
 module channel_arbiter #(
     parameter S = 2,           // Number of source modules
     parameter D = 2,           // Number of destination modules
-    parameter WIDTH = 64,      // payload width 
+    parameter WIDTH = 64,      // payload width
     parameter LOG_D = (D > 1) ? $clog2(D) : 1, // Width of destination index
     parameter LOG_S = (S > 1) ? $clog2(S) : 1  // Width of source index
 ) (
@@ -81,17 +81,24 @@ module channel_arbiter #(
     //     - to grantRdy, dstVld, dstDat
     always_comb begin
         grantRdy = 0;
-        dstVld = 0;
-        dstDat = 0;
+        dstVld = dstVld_r;
+        dstDat = dstDat_r;
+        for (int i=0; i<D; i++) begin
+            if (dstRdy_i[i]) begin
+                dstVld[i] = 0;
+            end
+        end
+
         rrPtr = rrPtr_r;
         for (int i = S-1; i >=0; i--) begin
             m = (rrPtr_r + i) % S;
             dstIdx = srcTarget_r[m];
-            if (srcVld_r[m] && dstRdy_r[dstIdx]) begin
+            if (srcVld_r[m] && dstRdy_i[dstIdx]) begin
                 grantRdy[m] = 1'b1;
                 dstVld[dstIdx] = 1'b1;
                 dstDat = srcDat_r[m];
                 rrPtr = (m + 1) % S;
+                break;
             end
         end
     end

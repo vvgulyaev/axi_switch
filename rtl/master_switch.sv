@@ -18,16 +18,16 @@ module master_switch #(
     input  logic                     rstn,
 
     // Slave module interface (M slaves)
-    output logic [M-1:0]             m_axi_arvalid,
-    input  logic [M-1:0]             m_axi_arready,
+    output logic [M-1:0]            m_axi_arvalid,
+    input  logic [M-1:0]            m_axi_arready,
     output logic [ID_WIDTH-1:0]     m_axi_arid[M],
     output logic [ADDR_WIDTH-1:0]   m_axi_araddr[M],
     output logic [7:0]              m_axi_arlen[M],
     output logic [2:0]              m_axi_arsize[M],
     output logic [1:0]              m_axi_arburst[M],
 
-    output logic [M-1:0]             m_axi_awvalid,
-    input  logic [M-1:0]             m_axi_awready,
+    output logic [M-1:0]            m_axi_awvalid,
+    input  logic [M-1:0]            m_axi_awready,
     output logic [ID_WIDTH-1:0]     m_axi_awid[M],
     output logic [ADDR_WIDTH-1:0]   m_axi_awaddr[M],
     output logic [7:0]              m_axi_awlen[M],
@@ -54,8 +54,8 @@ module master_switch #(
 
     // Arbitrated channel buses
     // AR channel (from master switch)
-    input  logic [N-1:0]                     busARVld_i,
-    output logic [M-1:0]                    busARRdy_o,
+    input  logic [N-1:0]                   busARVld_i,
+    output logic [M-1:0]                   busARRdy_o,
     input  logic [ADDR_WIDTH-1:0]          busARAddr_i,
     input  logic [ID_WIDTH-1:0]            busARId_i,
     input  logic [7:0]                     busARLen_i,
@@ -105,7 +105,7 @@ module master_switch #(
 
 
 // AR channel registers
-logic [M-1:0]             bum_axi_arvalid_r;
+logic [M-1:0]            bum_axi_arvalid_r;
 logic [ID_WIDTH-1:0]     bum_axi_arid_r;
 logic [ADDR_WIDTH-1:0]   bum_axi_araddr_r;
 logic [7:0]              bum_axi_arlen_r;
@@ -113,7 +113,7 @@ logic [2:0]              bum_axi_arsize_r;
 logic [1:0]              bum_axi_arburst_r;
 
 // AW channel registers
-logic [M-1:0]             bum_axi_awvalid_r;
+logic [M-1:0]            bum_axi_awvalid_r;
 logic [ID_WIDTH-1:0]     bum_axi_awid_r;
 logic [ADDR_WIDTH-1:0]   bum_axi_awaddr_r;
 logic [7:0]              bum_axi_awlen_r;
@@ -121,7 +121,7 @@ logic [2:0]              bum_axi_awsize_r;
 logic [1:0]              bum_axi_awburst_r;
 
 // W channel registers
-logic [M-1:0]             bum_axi_wvalid_r;
+logic [M-1:0]            bum_axi_wvalid_r;
 logic [WIDTH-1:0]        bum_axi_wdata_r;
 logic [WIDTH/8-1:0]      bum_axi_wstrb_r;
 logic                    bum_axi_wlast_r;
@@ -133,7 +133,7 @@ logic [LOG_N-1:0] rid_dest;
 logic [M-1:0] bid_re;
 logic [M-1:0] bid_valid;
 logic [LOG_N-1:0] bid_dest;
-reg [LOG_M-1:0] rtargetVld_r, wtargetVld_r;  // Valid signals for target buffers
+reg [M-1:0]     rtargetVld_r, wtargetVld_r;  // Valid signals for target buffers
 reg [LOG_N-1:0] rtargetBuf_r[M], wtargetBuf_r[M];  // Target master matrix
 
 logic [ID_WIDTH-1:0]            busAWId[1];
@@ -144,18 +144,21 @@ logic [LOG_N-1:0]               busARSrc[1];
 // Connect registered signals to outputs
 always_comb begin
     for (int i = 0; i < M; i++) begin
+        m_axi_arvalid[i] = bum_axi_arvalid_r[i];
         m_axi_arid[i] = bum_axi_arid_r;
         m_axi_araddr[i] = bum_axi_araddr_r;
         m_axi_arlen[i] = bum_axi_arlen_r;
         m_axi_arsize[i] = bum_axi_arsize_r;
         m_axi_arburst[i] = bum_axi_arburst_r;
 
+        m_axi_awvalid[i] = bum_axi_awvalid_r[i];
         m_axi_awid[i] = bum_axi_awid_r;
         m_axi_awaddr[i] = bum_axi_awaddr_r;
         m_axi_awlen[i] = bum_axi_awlen_r;
         m_axi_awsize[i] = bum_axi_awsize_r;
         m_axi_awburst[i] = bum_axi_awburst_r;
 
+        m_axi_wvalid[i] = bum_axi_wvalid_r[i];
         m_axi_wdata[i] = bum_axi_wdata_r;
         m_axi_wstrb[i] = bum_axi_wstrb_r;
         m_axi_wlast[i] = bum_axi_wlast_r;
@@ -242,38 +245,38 @@ end
 
     // RID table to track master destination for read responses
     arbitrated_dual_port_ram #(
-        .W(1),                  // One write port (from AR channel)
-        .R(M),                  // M read ports (one per slave)
-        .D(2**ID_WIDTH),        // Depth based on ID width
-        .WIDTH(LOG_N)           // Width to store master index
+        .W      (1),                  // One write port (from AR channel)
+        .R      (M),                  // M read ports (one per slave)
+        .D      (2**ID_WIDTH),        // Depth based on ID width
+        .WIDTH  (LOG_N)           // Width to store master index
     ) rid_table (
-        .clk(clk),
-        .rstn(rstn),
-        .we_i(busARVld_i!=0),     // Write on valid AR transaction
-        .wadr_i(busARId),     // Address = transaction ID
-        .wdat_i(busARSrc),    // Data = source master index
-        .re_i(rid_re),     // Read when lookup requested
-        .radr_i(m_axi_rid),     // Address = response ID
-        .rdat_o(rid_dest),      // Data = destination master
-        .rdRdy_o(rid_valid)     // Valid signal for lookup result
+        .clk        (clk),
+        .rstn       (rstn),
+        .we_i       (busARVld_i!=0),     // Write on valid AR transaction
+        .wadr_i     (busARId),     // Address = transaction ID
+        .wdat_i     (busARSrc),    // Data = source master index
+        .re_i       (rid_re),     // Read when lookup requested
+        .radr_i     (m_axi_rid),     // Address = response ID
+        .rdat_o     (rid_dest),      // Data = destination master
+        .rdRdy_o    (rid_valid)     // Valid signal for lookup result
     );
 
     // BID table to track master destination for write responses
     arbitrated_dual_port_ram #(
-        .W(1),                  // One write port (from AW channel)
-        .R(M),                  // M read ports (one per slave)
-        .D(2**ID_WIDTH),        // Depth based on ID width
-        .WIDTH(LOG_N)           // Width to store master index
+        .W      (1),                  // One write port (from AW channel)
+        .R      (M),                  // M read ports (one per slave)
+        .D      (2**ID_WIDTH),        // Depth based on ID width
+        .WIDTH  (LOG_N)           // Width to store master index
     ) bid_table (
-        .clk(clk),
-        .rstn(rstn),
-        .we_i(busAWVld_i!=0),     // Write on valid AW transaction
-        .wadr_i(busAWId),     // Address = transaction ID
-        .wdat_i(busAWSrc),    // Data = source master index
-        .re_i(m_axi_bvalid),     // Read when lookup requested
-        .radr_i(m_axi_bid),     // Address = response ID
-        .rdat_o(bid_dest),      // Data = destination master
-        .rdRdy_o(bid_valid)     // Valid signal for lookup result
+        .clk        (clk),
+        .rstn       (rstn),
+        .we_i       (busAWVld_i!=0),     // Write on valid AW transaction
+        .wadr_i     (busAWId),     // Address = transaction ID
+        .wdat_i     (busAWSrc),    // Data = source master index
+        .re_i       (m_axi_bvalid),     // Read when lookup requested
+        .radr_i     (m_axi_bid),     // Address = response ID
+        .rdat_o     (bid_dest),      // Data = destination master
+        .rdRdy_o    (bid_valid)     // Valid signal for lookup result
     );
 
 
@@ -333,15 +336,15 @@ end
         .D(N),                 // N masters as destinations
         .WIDTH(WIDTH+ID_WIDTH+2+1)     // Data+ID+Resp+Last
     ) r_arbiter (
-        .clk(clk),
-        .rstn(rstn),
-        .srcVld_i(m_axi_rvalid & rtargetVld_r), // Only valid if target known
-        .grantRdy_o(m_axi_rready),
-        .srcDat_i(r_src_data),
-        .srcTarget_i(rtargetBuf_r),
-        .dstVld_o(busRVld_o),
-        .dstRdy_i(busRRdy_i),
-        .dstDat_o({busRData_o, busRId_o, busRResp_o, busRLast_o})
+        .clk            (clk),
+        .rstn           (rstn),
+        .srcVld_i       (m_axi_rvalid & rtargetVld_r), // Only valid if target known
+        .grantRdy_o     (m_axi_rready),
+        .srcDat_i       (r_src_data),
+        .srcTarget_i    (rtargetBuf_r),
+        .dstVld_o       (busRVld_o),
+        .dstRdy_i       (busRRdy_i),
+        .dstDat_o       ({busRData_o, busRId_o, busRResp_o, busRLast_o})
         // dstSrc_o not used since there is no feedback to slaves
     );
 
@@ -358,20 +361,20 @@ end
 
     // B channel arbiter
     channel_arbiter #(
-        .S(M),          // M slaves as sources
-        .D(N),          // N masters as destinations
-        .WIDTH(ID_WIDTH+2)      // ID+Resp
+        .S      (M),          // M slaves as sources
+        .D      (N),          // N masters as destinations
+        .WIDTH  (ID_WIDTH+2)      // ID+Resp
     ) b_arbiter (
-        .clk(clk),
-        .rstn(rstn),
-        .srcVld_i(m_axi_bvalid & wtargetVld_r), // Only valid if write target is known
-        .grantRdy_o(m_axi_bready),
-        .srcDat_i(b_src_data),
+        .clk            (clk),
+        .rstn           (rstn),
+        .srcVld_i       (m_axi_bvalid & wtargetVld_r), // Only valid if write target is known
+        .grantRdy_o     (m_axi_bready),
+        .srcDat_i       (b_src_data),
         //input  [LOG_N-1:0]              srcTarget_i[M],      // Destination indices from sources
-        .srcTarget_i(wtargetBuf_r),
-        .dstVld_o(busBVld_o),
-        .dstRdy_i(busBRdy_i),
-        .dstDat_o({busBId_o, busBResp_o})
+        .srcTarget_i    (wtargetBuf_r),
+        .dstVld_o       (busBVld_o),
+        .dstRdy_i       (busBRdy_i),
+        .dstDat_o       ({busBId_o, busBResp_o})
         // dstSrc_o not used since there is no feedback to slaves
     );
 

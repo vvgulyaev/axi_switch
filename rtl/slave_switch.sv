@@ -92,131 +92,130 @@ module slave_switch #( // connect M masters and output 3 request channels to arb
     input  [1:0]                    busBResp_i          // Write response from slaves
 );
 
-// Internal signals for channel data packing
-logic [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] ar_packed_data[N];
-logic [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] aw_packed_data[N];
-logic [WIDTH+WIDTH/8+1-1:0] w_packed_data[N];
-logic [LOG_M-1:0] ar_target[N];
-logic [LOG_M-1:0] aw_target[N];
-logic [LOG_M-1:0] w_target[N];
+    // Internal signals for channel data packing
+    logic [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] ar_packed_data[N];
+    logic [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] aw_packed_data[N];
+    logic [WIDTH+WIDTH/8+1-1:0] w_packed_data[N];
+    logic [LOG_M-1:0] ar_target[N];
+    logic [LOG_M-1:0] aw_target[N];
+    logic [LOG_M-1:0] w_target[N];
 
-// Calculate target slave from address MSBs
-genvar i;
-generate
-    for (i = 0; i < N; i++) begin : target_calc
-        assign ar_target[i] = s_axi_araddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_M];
-        assign aw_target[i] = s_axi_awaddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_M];
-        // W channel uses same target as AW
-        assign w_target[i] = s_axi_awaddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_M];
+    // Calculate target slave from address MSBs
+    generate
+        for (genvar i = 0; i < N; i++) begin : target_calc
+            assign ar_target[i] = s_axi_araddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_M];
+            assign aw_target[i] = s_axi_awaddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_M];
+            // W channel uses same target as AW
+            assign w_target[i] = s_axi_awaddr[i][ADDR_WIDTH-1:ADDR_WIDTH-LOG_M];
 
-        // Pack AR channel data
-        assign ar_packed_data[i] = {s_axi_araddr[i], s_axi_arid[i], s_axi_arlen[i], s_axi_arsize[i], s_axi_arburst[i]};
+            // Pack AR channel data
+            assign ar_packed_data[i] = {s_axi_araddr[i], s_axi_arid[i], s_axi_arlen[i], s_axi_arsize[i], s_axi_arburst[i]};
 
-        // Pack AW channel data
-        assign aw_packed_data[i] = {s_axi_awaddr[i], s_axi_awid[i], s_axi_awlen[i], s_axi_awsize[i], s_axi_awburst[i]};
+            // Pack AW channel data
+            assign aw_packed_data[i] = {s_axi_awaddr[i], s_axi_awid[i], s_axi_awlen[i], s_axi_awsize[i], s_axi_awburst[i]};
 
-        // Pack W channel data
-        assign w_packed_data[i] = {s_axi_wdata[i], s_axi_wstrb[i], s_axi_wlast[i]};
-    end
-endgenerate
+            // Pack W channel data
+            assign w_packed_data[i] = {s_axi_wdata[i], s_axi_wstrb[i], s_axi_wlast[i]};
+        end
+    endgenerate
 
-// Unpacked data for output channels
-wire [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] ar_unpacked_data;
-wire [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] aw_unpacked_data;
-wire [WIDTH+WIDTH/8+1-1:0] w_unpacked_data;
+    // Unpacked data for output channels
+    wire [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] ar_unpacked_data;
+    wire [ADDR_WIDTH+ID_WIDTH+8+3+2-1:0] aw_unpacked_data;
+    wire [WIDTH+WIDTH/8+1-1:0] w_unpacked_data;
 
-// Connect packed data to outputs
-assign {busARAddr_o, busARId_o, busARLen_o, busARSz_o, busARBurst_o} = ar_unpacked_data;
-assign {busAWAddr_o, busAWId_o, busAWLen_o, busAWSz_o, busAWBurst_o} = aw_unpacked_data;
-assign {busWData_o, busWStrb_o, busWLast_o} = w_unpacked_data;
+    // Connect packed data to outputs
+    assign {busARAddr_o, busARId_o, busARLen_o, busARSz_o, busARBurst_o} = ar_unpacked_data;
+    assign {busAWAddr_o, busAWId_o, busAWLen_o, busAWSz_o, busAWBurst_o} = aw_unpacked_data;
+    assign {busWData_o, busWStrb_o, busWLast_o} = w_unpacked_data;
 
-// instantiate 3 channel arbiters for AR, AW, W channels
-channel_arbiter #(
-    .S(N),
-    .D(M),
-    .WIDTH(ADDR_WIDTH + ID_WIDTH + 8 + 3 + 2), // AR/AW channel width
-    .LOG_D(LOG_M),
-    .LOG_S(LOG_N)
-) ar_arbiter (
-    .clk(clk),
-    .rstn(rstn),
-    .srcVld_i(s_axi_arvalid),
-    .srcTarget_i(ar_target),
-    .srcDat_i(ar_packed_data),
-    .grantRdy_o(s_axi_arready),
-    .dstRdy_i(busARRdy_i),
-    .dstVld_o(busARVld_o),
-    .dstDat_o(ar_unpacked_data),
-    .dstSrc_o(busARSrc_o)
-);
+    // instantiate 3 channel arbiters for AR, AW, W channels
+    channel_arbiter #(
+        .S      (N),
+        .D      (M),
+        .WIDTH  (ADDR_WIDTH + ID_WIDTH + 8 + 3 + 2), // AR/AW channel width
+        .LOG_D  (LOG_M),
+        .LOG_S  (LOG_N)
+    ) ar_arbiter (
+        .clk            (clk),
+        .rstn           (rstn),
+        .srcVld_i       (s_axi_arvalid),
+        .srcTarget_i    (ar_target),
+        .srcDat_i       (ar_packed_data),
+        .grantRdy_o     (s_axi_arready),
+        .dstRdy_i       (busARRdy_i),
+        .dstVld_o       (busARVld_o),
+        .dstDat_o       (ar_unpacked_data),
+        .dstSrc_o       (busARSrc_o)
+    );
 
-channel_arbiter #(
-    .S(N),
-    .D(M),
-    .WIDTH(ADDR_WIDTH + ID_WIDTH + 8 + 3 + 2), // AR/AW channel width
-    .LOG_D(LOG_M),
-    .LOG_S(LOG_N)
-) aw_arbiter (
-    .clk(clk),
-    .rstn(rstn),
-    .srcVld_i(s_axi_awvalid),
-    .srcTarget_i(aw_target),
-    .srcDat_i(aw_packed_data),
-    .grantRdy_o(s_axi_awready),
-    .dstRdy_i(busAWRdy_i),
-    .dstVld_o(busAWVld_o),
-    .dstDat_o(aw_unpacked_data),
-    .dstSrc_o(busAWSrc_o)
-);
+    channel_arbiter #(
+        .S      (N),
+        .D      (M),
+        .WIDTH  (ADDR_WIDTH + ID_WIDTH + 8 + 3 + 2), // AR/AW channel width
+        .LOG_D  (LOG_M),
+        .LOG_S  (LOG_N)
+    ) aw_arbiter (
+        .clk            (clk),
+        .rstn           (rstn),
+        .srcVld_i       (s_axi_awvalid),
+        .srcTarget_i    (aw_target),
+        .srcDat_i       (aw_packed_data),
+        .grantRdy_o     (s_axi_awready),
+        .dstRdy_i       (busAWRdy_i),
+        .dstVld_o       (busAWVld_o),
+        .dstDat_o       (aw_unpacked_data),
+        .dstSrc_o       (busAWSrc_o)
+    );
 
-channel_arbiter #(
-    .S(N),
-    .D(M),
-    .WIDTH(WIDTH + WIDTH/8 + 1), // W channel width
-    .LOG_D(LOG_M),
-    .LOG_S(LOG_N)
-) w_arbiter (
-    .clk(clk),
-    .rstn(rstn),
-    .srcVld_i(s_axi_wvalid),
-    .srcTarget_i(w_target),
-    .srcDat_i(w_packed_data),
-    .grantRdy_o(s_axi_wready),
-    .dstRdy_i(busWRdy_i),
-    .dstVld_o(busWVld_o),
-    .dstDat_o(w_unpacked_data),
-    .dstSrc_o(busWSrc_o)
-);
+    channel_arbiter #(
+        .S          (N),
+        .D          (M),
+        .WIDTH      (WIDTH + WIDTH/8 + 1), // W channel width
+        .LOG_D      (LOG_M),
+        .LOG_S      (LOG_N)
+    ) w_arbiter (
+        .clk            (clk),
+        .rstn           (rstn),
+        .srcVld_i       (s_axi_wvalid),
+        .srcTarget_i    (w_target),
+        .srcDat_i       (w_packed_data),
+        .grantRdy_o     (s_axi_wready),
+        .dstRdy_i       (busWRdy_i),
+        .dstVld_o       (busWVld_o),
+        .dstDat_o       (w_unpacked_data),
+        .dstSrc_o       (busWSrc_o)
+    );
 
-// Connect read-data and write-ack bus with the master module ports
+    // Connect read-data and write-ack bus with the master module ports
 
-// R channel - Connect slave responses to masters
-assign busRRdy_o = s_axi_rready;  // Forward master ready signals to bus
+    // R channel - Connect slave responses to masters
+    assign busRRdy_o = s_axi_rready;  // Forward master ready signals to bus
 
-// Broadcast incoming read data to all masters
-// Only the master with matching ID will actually use the data
-genvar r_idx;
-generate
-    for (r_idx = 0; r_idx < N; r_idx++) begin : r_broadcast
-        assign s_axi_rvalid[r_idx] = busRVld_i[r_idx];  // Valid to specific master
-        assign s_axi_rdata[r_idx] = busRData_i;         // Broadcast data to all masters
-        assign s_axi_rid[r_idx] = busRId_i;           // Broadcast ID to all masters
-        assign s_axi_rresp[r_idx] = busRResp_i;        // Broadcast response to all masters
-        assign s_axi_rlast[r_idx] = busRLast_i;        // Broadcast last to all masters
-    end
-endgenerate
+    // Broadcast incoming read data to all masters
+    // Only the master with matching ID will actually use the data
+    genvar r_idx;
+    generate
+        for (r_idx = 0; r_idx < N; r_idx++) begin : r_broadcast
+            assign s_axi_rvalid[r_idx] = busRVld_i[r_idx];  // Valid to specific master
+            assign s_axi_rdata[r_idx] = busRData_i;         // Broadcast data to all masters
+            assign s_axi_rid[r_idx] = busRId_i;           // Broadcast ID to all masters
+            assign s_axi_rresp[r_idx] = busRResp_i;        // Broadcast response to all masters
+            assign s_axi_rlast[r_idx] = busRLast_i;        // Broadcast last to all masters
+        end
+    endgenerate
 
-// B channel - Connect slave write responses to masters
-assign busBRdy_o = s_axi_bready;  // Forward master ready signals to bus
+    // B channel - Connect slave write responses to masters
+    assign busBRdy_o = s_axi_bready;  // Forward master ready signals to bus
 
-// Broadcast incoming write responses to all masters
-// Only the master with matching ID will actually use the response
-genvar b_idx;
-generate
-    for (b_idx = 0; b_idx < N; b_idx++) begin : b_broadcast
-        assign s_axi_bvalid[b_idx] = busBVld_i[b_idx];  // Valid to specific master
-        assign s_axi_bid[b_idx] = busBId_i;             // Broadcast ID to all masters
-        assign s_axi_bresp[b_idx] = busBResp_i;         // Broadcast response to all masters
-    end
-endgenerate
+    // Broadcast incoming write responses to all masters
+    // Only the master with matching ID will actually use the response
+    genvar b_idx;
+    generate
+        for (b_idx = 0; b_idx < N; b_idx++) begin : b_broadcast
+            assign s_axi_bvalid[b_idx] = busBVld_i[b_idx];  // Valid to specific master
+            assign s_axi_bid[b_idx] = busBId_i;             // Broadcast ID to all masters
+            assign s_axi_bresp[b_idx] = busBResp_i;         // Broadcast response to all masters
+        end
+    endgenerate
 endmodule
