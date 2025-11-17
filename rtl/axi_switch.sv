@@ -216,7 +216,7 @@ module axi_switch #(
 
     // Arbitrated channel buses connecting _slave_switch and slave_switch
     // AR channel
-    logic [N-1:0]        busARVld;
+    logic [M-1:0]        busARVld;
     logic [M-1:0]        busARRdy;
     logic [AW-1:0]       busARAddr;
     logic [IDW-1:0]      busARId;
@@ -227,7 +227,7 @@ module axi_switch #(
     logic [LOG_M-1:0]    busARDst;
 
     // AW channel
-    logic [N-1:0]        busAWVld;
+    logic [M-1:0]        busAWVld;
     logic [M-1:0]        busAWRdy;
     logic [AW-1:0]       busAWAddr;
     logic [IDW-1:0]      busAWId;
@@ -238,7 +238,7 @@ module axi_switch #(
     logic [LOG_M-1:0]    busAWDst;
 
     // W channel
-    logic [N-1:0]        busWVld;
+    logic [M-1:0]        busWVld;
     logic [M-1:0]        busWRdy;
     logic [DW-1:0]       busWData;
     logic [DW/8-1:0]     busWStrb;
@@ -248,7 +248,7 @@ module axi_switch #(
 
     // R channel
     logic [M-1:0]        busRVld;
-    logic [N-1:0]        busRRdy;
+    logic [M-1:0]        busRRdy;
     logic [DW-1:0]       busRData;
     logic [IDW-1:0]      busRId;
     logic [1:0]          busRResp;
@@ -256,7 +256,7 @@ module axi_switch #(
 
     // B channel
     logic [M-1:0]        busBVld;
-    logic [N-1:0]        busBRdy;
+    logic [M-1:0]        busBRdy;
     logic [IDW-1:0]      busBId;
     logic [1:0]          busBResp;
 

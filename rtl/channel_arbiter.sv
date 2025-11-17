@@ -33,79 +33,108 @@ module channel_arbiter #(
     output logic [WIDTH-1:0]        dstDat_o            // Broadcast to all destinations
 );
 
-    // Registered input signals
-    reg [S-1:0]            srcVld_r;
-    reg [LOG_D-1:0]        srcTarget_r[S];
-    reg [WIDTH-1:0]        srcDat_r[S];
-    reg [D-1:0]            dstRdy_r;
-
-    // Registered output signals
-    reg [D-1:0]            dstVld, dstVld_r;
-    reg [WIDTH-1:0]        dstDat, dstDat_r;
+    logic  [S-1:0]     srcVld, srcVld_r;
+    logic  [LOG_D-1:0] srcTarget[S], srcTarget_r[S];
+    logic  [WIDTH-1:0] srcDat[S], srcDat_r[S];
+    logic  [S-1:0]     clrSrcVld;
+    logic  [LOG_D-1:0] dstIdx;
 
     // Arbitration state
-    logic [LOG_S-1:0]     rrPtr_r, rrPtr, m;
-    logic [LOG_D-1:0]     target;
-    logic [LOG_D-1:0]     dstIdx;
-    logic [S-1:0]         grantRdy;
+    logic [LOG_S-1:0]     rrPtr_r, rrPtr;
+    logic [D-1:0]         dstVld, dstVld_r;
+    logic [WIDTH-1:0]     dstDat, dstDat_r;
+    logic [LOG_S-1:0]     dstSrc, dstSrc_r;
+    logic [D-1:0]         dstRdy_r;
 
-    // Register inputs
-    always_ff @(posedge clk or negedge rstn) begin
-        if (!rstn) begin
-            srcVld_r <= '0;
-            dstRdy_r <= '0;
-            dstVld_r <= '0;
-            dstDat_r <= '0;
-            grantRdy_o <= '0;
-            rrPtr_r <= '0;
-            for (int i = 0; i < S; i++) begin
-                srcTarget_r[i] <= '0;
-                srcDat_r[i] <= '0;
+    //-----------------------------------------------
+    //Stage 0: Input buffer
+    //-----------------------------------------------
+    always_comb begin
+        srcVld = srcVld_r;
+        srcTarget = srcTarget_r;
+        srcDat = srcDat_r;
+        grantRdy_o = 0;
+
+        for (int i = 0; i < S; i++) begin
+            if ((~srcVld_r[i] || clrSrcVld[i]) && srcVld_i[i]) begin
+                grantRdy_o[i] = 1;
+                srcVld[i] = 1;
+                srcTarget[i] = srcTarget_i[i];
+                srcDat[i] = srcDat_i[i];
             end
-        end else begin
-            srcVld_r <= srcVld_i;
-            dstRdy_r <= dstRdy_i;
-            dstVld_r <= dstVld;
-            dstDat_r <= dstDat;
-            grantRdy_o <= grantRdy;
-            rrPtr_r <= rrPtr;
-            for (int i = 0; i < S; i++) begin
-                srcTarget_r[i] <= srcTarget_i[i];
-                srcDat_r[i] <= srcDat_i[i];
+            else if (clrSrcVld[i]) begin
+                srcVld[i] = 0;
             end
         end
     end
 
-    // Round-robin arbitration: map
-    //     - from srcVld, srcTarget, srcDat
-    //     - to grantRdy, dstVld, dstDat
+
+    //------------------------------------------------
+    //Stage 1: RR arbiter
+    //------------------------------------------------
     always_comb begin
-        grantRdy = 0;
+        clrSrcVld = 0;
+        rrPtr = rrPtr_r;
+        dstIdx = 0;
+
         dstVld = dstVld_r;
         dstDat = dstDat_r;
-        for (int i=0; i<D; i++) begin
-            if (dstRdy_i[i]) begin
+        dstSrc = dstSrc_r;
+        for (int i = 0; i < D; i++) begin
+            if (dstVld_r[i] && dstRdy_i[i]) begin
                 dstVld[i] = 0;
             end
         end
 
-        rrPtr = rrPtr_r;
-        for (int i = S-1; i >=0; i--) begin
+        for (int i = 0; i < S; i++) begin
+            int m;
             m = (rrPtr_r + i) % S;
             dstIdx = srcTarget_r[m];
-            if (srcVld_r[m] && dstRdy_i[dstIdx]) begin
-                grantRdy[m] = 1'b1;
+            if (srcVld_r[m] && ~dstVld[dstIdx]) begin
                 dstVld[dstIdx] = 1'b1;
                 dstDat = srcDat_r[m];
+                clrSrcVld[m] = 1;
+                dstSrc = m;
                 rrPtr = (m + 1) % S;
                 break;
             end
         end
     end
 
-
     // Assign registered outputs
     assign dstVld_o = dstVld_r;
     assign dstDat_o = dstDat_r;
-    assign dstSrc_o = m;
+    assign dstSrc_o = dstSrc_r;
+
+
+    //------------------------------------------------
+    // Registering
+    //------------------------------------------------
+    always_ff @(posedge clk or negedge rstn) begin
+        if (!rstn) begin
+            srcVld_r <= 0;
+            srcTarget_r <= '{default: '0};
+            srcDat_r <= '{default: '0};
+
+            rrPtr_r  <= 0;
+
+            dstVld_r <= 0;
+            dstDat_r <= 0;
+            dstSrc_r <= 0;
+            dstRdy_r <= 0;
+        end
+        else begin
+            srcVld_r <= srcVld;
+            srcTarget_r <= srcTarget;
+            srcDat_r <= srcDat;
+
+            rrPtr_r <= rrPtr;
+
+            dstVld_r <= dstVld;
+            dstDat_r <= dstDat;
+            dstSrc_r <= dstSrc;
+            dstRdy_r <= dstRdy_i;
+        end
+    end
+
 endmodule

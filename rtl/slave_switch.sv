@@ -50,7 +50,7 @@ module slave_switch #( // connect M masters and output 3 request channels to arb
 
     // 5 arbitrated channel buses
     // AR (Read Address) arbitrated channel bus
-    output logic [N-1:0]            busARVld_o,         // Read arbitrated valid to slaves
+    output logic [M-1:0]            busARVld_o,         // Read arbitrated valid to slaves
     input  logic [M-1:0]            busARRdy_i,         // Read address ready from slaves
     output [ADDR_WIDTH-1:0]         busARAddr_o,        // Read address to slaves
     output [ID_WIDTH-1:0]           busARId_o,          // Read address ID to slaves
@@ -60,7 +60,7 @@ module slave_switch #( // connect M masters and output 3 request channels to arb
     output [LOG_N-1:0]              busARSrc_o,         // Source master index for read address
 
     // AW (Write Address) arbitrated channel bus
-    output logic [N-1:0]            busAWVld_o,         // Write address valid to slaves
+    output logic [M-1:0]            busAWVld_o,         // Write address valid to slaves
     input  logic [M-1:0]            busAWRdy_i,         // Write address ready from slaves
     output [ADDR_WIDTH-1:0]         busAWAddr_o,        // Write address to slaves
     output [ID_WIDTH-1:0]           busAWId_o,          // Write address ID to slaves
@@ -70,7 +70,7 @@ module slave_switch #( // connect M masters and output 3 request channels to arb
     output [LOG_N-1:0]              busAWSrc_o,         // Source master index for write address
 
     // W (Write Data) arbitrated channel bus
-    output logic [N-1:0]            busWVld_o,          // Write data valid to slaves
+    output logic [M-1:0]            busWVld_o,          // Write data valid to slaves
     input  logic [M-1:0]            busWRdy_i,          // Write data ready from slaves
     output [WIDTH-1:0]              busWData_o,         // Write data to slaves
     output [WIDTH/8-1:0]            busWStrb_o,         // Write data strobe to slaves
@@ -79,7 +79,7 @@ module slave_switch #( // connect M masters and output 3 request channels to arb
 
     // R (Read Data) arbitrated channel bus
     input  logic [M-1:0]            busRVld_i,          // Read data valid from slaves
-    output logic [N-1:0]            busRRdy_o,          // Read data ready to slaves
+    output logic [M-1:0]            busRRdy_o,          // Read data ready to slaves
     input  [WIDTH-1:0]              busRData_i,         // Read data from slaves
     input  [ID_WIDTH-1:0]           busRId_i,           // Read data ID from slaves
     input  [1:0]                    busRResp_i,         // Read data response from slaves
@@ -87,7 +87,7 @@ module slave_switch #( // connect M masters and output 3 request channels to arb
 
     // B (Write Response) arbitrated channel bus
     input  logic [M-1:0]            busBVld_i,          // Write response valid from slaves
-    output logic [N-1:0]            busBRdy_o,          // Write response ready to slaves
+    output logic [M-1:0]            busBRdy_o,          // Write response ready to slaves
     input  [ID_WIDTH-1:0]           busBId_i,           // Write response ID from slaves
     input  [1:0]                    busBResp_i          // Write response from slaves
 );

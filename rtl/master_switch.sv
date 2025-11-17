@@ -54,7 +54,7 @@ module master_switch #(
 
     // Arbitrated channel buses
     // AR channel (from master switch)
-    input  logic [N-1:0]                   busARVld_i,
+    input  logic [M-1:0]                   busARVld_i,
     output logic [M-1:0]                   busARRdy_o,
     input  logic [ADDR_WIDTH-1:0]          busARAddr_i,
     input  logic [ID_WIDTH-1:0]            busARId_i,
@@ -65,7 +65,7 @@ module master_switch #(
     input  logic [LOG_M-1:0]               busARDst_i,
 
     // AW channel (from master switch)
-    input  logic [N-1:0]                   busAWVld_i,
+    input  logic [M-1:0]                   busAWVld_i,
     output logic [M-1:0]                   busAWRdy_o,
     input  logic [ADDR_WIDTH-1:0]          busAWAddr_i,
     input  logic [ID_WIDTH-1:0]            busAWId_i,
@@ -76,172 +76,385 @@ module master_switch #(
     input  logic [LOG_M-1:0]               busAWDst_i,
 
     // W channel (from master switch)
-    input  logic [N-1:0]                busWVld_i,
-    output logic [M-1:0]                busWRdy_o,
-    input  [WIDTH-1:0]                  busWData_i,
-    input  [WIDTH/8-1:0]                busWStrb_i,
-    input  logic                        busWLast_i,
-    input  [LOG_N-1:0]                  busWSrc_i,
-    input  [LOG_M-1:0]                  busWDst_i,
+    input  logic [M-1:0]                    busWVld_i,
+    output logic [M-1:0]                    busWRdy_o,
+    input  [WIDTH-1:0]                      busWData_i,
+    input  [WIDTH/8-1:0]                    busWStrb_i,
+    input  logic                            busWLast_i,
+    input  [LOG_N-1:0]                      busWSrc_i,
+    input  [LOG_M-1:0]                      busWDst_i,
 
     // R channel (to master switch)
-    output [M-1:0]                      busRVld_o,
-    input  [N-1:0]                      busRRdy_i,
-    output [WIDTH-1:0]                  busRData_o,
-    output [ID_WIDTH-1:0]               busRId_o,
-    output [1:0]                        busRResp_o,
-    output logic                        busRLast_o,
-    output [LOG_M-1:0]                  busRSrc_o,
-    output [LOG_N-1:0]                  busRDst_o,
+    output [N-1:0]                          busRVld_o,
+    input  [N-1:0]                          busRRdy_i,
+    output [WIDTH-1:0]                      busRData_o,
+    output [ID_WIDTH-1:0]                   busRId_o,
+    output [1:0]                            busRResp_o,
+    output logic                            busRLast_o,
+    output [LOG_M-1:0]                      busRSrc_o,
+    output [LOG_N-1:0]                      busRDst_o,
 
     // B channel (to master switch)
-    output [M-1:0]                      busBVld_o,
-    input  [N-1:0]                      busBRdy_i,
-    output [ID_WIDTH-1:0]               busBId_o,
-    output [1:0]                        busBResp_o,
-    output [LOG_M-1:0]                  busBSrc_o,
-    output [LOG_N-1:0]                  busBDst_o
+    output [N-1:0]                          busBVld_o,
+    input  [N-1:0]                          busBRdy_i,
+    output [ID_WIDTH-1:0]                   busBId_o,
+    output [1:0]                            busBResp_o,
+    output [LOG_M-1:0]                      busBSrc_o,
+    output [LOG_N-1:0]                      busBDst_o
 );
 
+    // AR channel registers
+    logic [M-1:0]            bum_axi_arvalid, bum_axi_arvalid_r;
+    logic [ID_WIDTH-1:0]     bum_axi_arid, bum_axi_arid_r;
+    logic [ADDR_WIDTH-1:0]   bum_axi_araddr, bum_axi_araddr_r;
+    logic [7:0]              bum_axi_arlen, bum_axi_arlen_r;
+    logic [2:0]              bum_axi_arsize, bum_axi_arsize_r;
+    logic [1:0]              bum_axi_arburst, bum_axi_arburst_r;
 
-// AR channel registers
-logic [M-1:0]            bum_axi_arvalid_r;
-logic [ID_WIDTH-1:0]     bum_axi_arid_r;
-logic [ADDR_WIDTH-1:0]   bum_axi_araddr_r;
-logic [7:0]              bum_axi_arlen_r;
-logic [2:0]              bum_axi_arsize_r;
-logic [1:0]              bum_axi_arburst_r;
+    logic [M-1:0]            m_axi_arvalid_w;
+    logic [M-1:0]            m_axi_arready_w;
+    logic [ID_WIDTH-1:0]     m_axi_arid_w[M];
+    logic [ADDR_WIDTH-1:0]   m_axi_araddr_w[M];
+    logic [7:0]              m_axi_arlen_w[M];
+    logic [2:0]              m_axi_arsize_w[M];
+    logic [1:0]              m_axi_arburst_w[M];
 
-// AW channel registers
-logic [M-1:0]            bum_axi_awvalid_r;
-logic [ID_WIDTH-1:0]     bum_axi_awid_r;
-logic [ADDR_WIDTH-1:0]   bum_axi_awaddr_r;
-logic [7:0]              bum_axi_awlen_r;
-logic [2:0]              bum_axi_awsize_r;
-logic [1:0]              bum_axi_awburst_r;
+    logic [M-1:0]            clr_bum_arvalid;
 
-// W channel registers
-logic [M-1:0]            bum_axi_wvalid_r;
-logic [WIDTH-1:0]        bum_axi_wdata_r;
-logic [WIDTH/8-1:0]      bum_axi_wstrb_r;
-logic                    bum_axi_wlast_r;
+    // AW channel registers
+    logic [M-1:0]            bum_axi_awvalid, bum_axi_awvalid_r;
+    logic [ID_WIDTH-1:0]     bum_axi_awid, bum_axi_awid_r;
+    logic [ADDR_WIDTH-1:0]   bum_axi_awaddr, bum_axi_awaddr_r;
+    logic [7:0]              bum_axi_awlen, bum_axi_awlen_r;
+    logic [2:0]              bum_axi_awsize, bum_axi_awsize_r;
+    logic [1:0]              bum_axi_awburst, bum_axi_awburst_r;
 
-// Internal signals for tracking rid/bid lookups
-logic [M-1:0] rid_re;
-logic [M-1:0] rid_valid;
-logic [LOG_N-1:0] rid_dest;
-logic [M-1:0] bid_re;
-logic [M-1:0] bid_valid;
-logic [LOG_N-1:0] bid_dest;
-reg [M-1:0]     rtargetVld_r, wtargetVld_r;  // Valid signals for target buffers
-reg [LOG_N-1:0] rtargetBuf_r[M], wtargetBuf_r[M];  // Target master matrix
+    // W channel registers
+    logic [M-1:0]            bum_axi_wvalid, bum_axi_wvalid_r;
+    logic [WIDTH-1:0]        bum_axi_wdata, bum_axi_wdata_r;
+    logic [WIDTH/8-1:0]      bum_axi_wstrb, bum_axi_wstrb_r;
+    logic                    bum_axi_wlast, bum_axi_wlast_r;
 
-logic [ID_WIDTH-1:0]            busAWId[1];
-logic [LOG_N-1:0]               busAWSrc[1];
-logic [ID_WIDTH-1:0]            busARId[1];
-logic [LOG_N-1:0]               busARSrc[1];
+    // Internal signals for tracking rid/bid lookups
+    logic [M-1:0]            rid_re;
+    logic [M-1:0]            rid_valid;
+    logic [LOG_N-1:0]        rid_dest;
+    logic [M-1:0]            bid_re;
+    logic [M-1:0]            bid_valid;
+    logic [LOG_N-1:0]        bid_dest;
+    reg [M-1:0]              rtargetVld_r, wtargetVld_r;  // Valid signals for target buffers
+    reg [LOG_N-1:0]          rtargetBuf_r[M], wtargetBuf_r[M];  // Target master matrix
 
-// Connect registered signals to outputs
-always_comb begin
-    for (int i = 0; i < M; i++) begin
-        m_axi_arvalid[i] = bum_axi_arvalid_r[i];
-        m_axi_arid[i] = bum_axi_arid_r;
-        m_axi_araddr[i] = bum_axi_araddr_r;
-        m_axi_arlen[i] = bum_axi_arlen_r;
-        m_axi_arsize[i] = bum_axi_arsize_r;
-        m_axi_arburst[i] = bum_axi_arburst_r;
+    logic [ID_WIDTH-1:0]     busAWId[1];
+    logic [LOG_N-1:0]        busAWSrc[1];
+    logic [ID_WIDTH-1:0]     busARId[1];
+    logic [LOG_N-1:0]        busARSrc[1];
 
-        m_axi_awvalid[i] = bum_axi_awvalid_r[i];
-        m_axi_awid[i] = bum_axi_awid_r;
-        m_axi_awaddr[i] = bum_axi_awaddr_r;
-        m_axi_awlen[i] = bum_axi_awlen_r;
-        m_axi_awsize[i] = bum_axi_awsize_r;
-        m_axi_awburst[i] = bum_axi_awburst_r;
 
-        m_axi_wvalid[i] = bum_axi_wvalid_r[i];
-        m_axi_wdata[i] = bum_axi_wdata_r;
-        m_axi_wstrb[i] = bum_axi_wstrb_r;
-        m_axi_wlast[i] = bum_axi_wlast_r;
-    end
+    logic [M-1:0]            m_axi_awvalid_w;
+    logic [M-1:0]            m_axi_awready_w;
+    logic [ID_WIDTH-1:0]     m_axi_awid_w[M];
+    logic [ADDR_WIDTH-1:0]   m_axi_awaddr_w[M];
+    logic [7:0]              m_axi_awlen_w[M];
+    logic [2:0]              m_axi_awsize_w[M];
+    logic [1:0]              m_axi_awburst_w[M];
 
-    for (int r = 0; r < M; r++) begin : gen_r_target
-        // Request lookup when valid response received without destination info
-        rid_re[r] = m_axi_rvalid[r] & ~rtargetVld_r[r];
-        // Set target based on lookup result
-        /*if (rid_valid[r]) begin
-            rtargetVld_r[r] = 1'b1;
-            rtargetBuf_r[r] = rid_dest;
-        end*/
-    end
+    logic [M-1:0]            clr_bum_awvalid;
 
-    //avoid compilation errors at connecting to rid and bid tables
-    busAWId[0] = busAWId_i;
-    busAWSrc[0] = busAWSrc_i;
-    busARId[0] = busARId_i;
-    busARSrc[0] = busARSrc_i;
-end
+    logic [M-1:0]             m_axi_wvalid_w;
+    logic [WIDTH-1:0]         m_axi_wdata_w[M];
+    logic [WIDTH/8-1:0]       m_axi_wstrb_w[M];
+    logic                     m_axi_wlast_w[M];
+    logic [M-1:0]             clr_bum_wvalid;
 
-// Forward valids of requesting channels to slave requesting channels and ready back
-always_ff @(posedge clk or negedge rstn) begin
-    if (!rstn) begin
-        bum_axi_arvalid_r <= '0;
-        bum_axi_awvalid_r <= '0;
-        bum_axi_wvalid_r <= '0;
-        busARRdy_o <= '0;
-        busAWRdy_o <= '0;
-        busWRdy_o <= '0;
-    // broadcasted registers
-        bum_axi_arid_r <= '0;
-        bum_axi_araddr_r <= '0;
-        bum_axi_arlen_r <= '0;
-        bum_axi_arsize_r <= '0;
-        bum_axi_arburst_r <= '0;
 
-        bum_axi_awid_r <= '0;
-        bum_axi_awaddr_r <= '0;
-        bum_axi_awlen_r <= '0;
-        bum_axi_awsize_r <= '0;
-        bum_axi_awburst_r <= '0;
-
-        bum_axi_wdata_r <= '0;
-        bum_axi_wstrb_r <= '0;
-        bum_axi_wlast_r <= '0;
-
-    end else begin
-        bum_axi_arvalid_r <= busARVld_i;
-        bum_axi_awvalid_r <= busAWVld_i;
-        bum_axi_wvalid_r <= busWVld_i;
-        // busRdy = s_ready & ~s_valid ensure it not ready at the next cycle to allow pipelined propagation of s_ready
-        busARRdy_o <= m_axi_arready & ~m_axi_arvalid;
-        busAWRdy_o <= m_axi_awready & ~m_axi_awvalid;
-        busWRdy_o <= m_axi_wready & ~m_axi_wvalid;
-
-        if (|busARVld_i) begin
-            bum_axi_arid_r <= busARId_i;
-            bum_axi_araddr_r <= busARAddr_i;
-            bum_axi_arlen_r <= busARLen_i;
-            bum_axi_arsize_r <= busARSz_i;
-            bum_axi_arburst_r <= busARBurst_i;
+    // Connect registered signals to outputs
+    always_comb begin
+        for (int r = 0; r < M; r++) begin : gen_r_target
+            // Request lookup when valid response received without destination info
+            rid_re[r] = m_axi_rvalid[r] & ~rtargetVld_r[r];
+            // Set target based on lookup result
+            /*if (rid_valid[r]) begin
+                rtargetVld_r[r] = 1'b1;
+                rtargetBuf_r[r] = rid_dest;
+            end*/
         end
 
-        if (|busAWVld_i) begin
-            bum_axi_awid_r <= busAWId_i;
-            bum_axi_awaddr_r <= busAWAddr_i;
-            bum_axi_awlen_r <= busAWLen_i;
-            bum_axi_awsize_r <= busAWSz_i;
-            bum_axi_awburst_r <= busAWBurst_i;
-        end
-
-        if (|busWVld_i) begin
-            bum_axi_wdata_r <= busWData_i;
-            bum_axi_wstrb_r <= busWStrb_i;
-            bum_axi_wlast_r <= busWLast_i;
-        end
-
+        //avoid compilation errors at connecting to rid and bid tables
+        busAWId[0] = busAWId_i;
+        busAWSrc[0] = busAWSrc_i;
+        busARId[0] = busARId_i;
+        busARSrc[0] = busARSrc_i;
     end
-end
+
+    // Forward valids of requesting channels to slave requesting channels and ready back
+    always_ff @(posedge clk or negedge rstn) begin
+        if (!rstn) begin
+            bum_axi_arvalid_r <= '0;
+            bum_axi_arid_r <= '0;
+            bum_axi_araddr_r <= '0;
+            bum_axi_arlen_r <= '0;
+            bum_axi_arsize_r <= '0;
+            bum_axi_arburst_r <= '0;
+
+            m_axi_arvalid <= 0;
+            m_axi_arid    <= '{default: '0};
+            m_axi_araddr  <= '{default: '0};
+            m_axi_arlen   <= '{default: '0};
+            m_axi_arsize  <= '{default: '0};
+            m_axi_arburst <= '{default: '0};
+
+            bum_axi_awvalid_r <= '0;
+            bum_axi_awid_r <= '0;
+            bum_axi_awaddr_r <= '0;
+            bum_axi_awlen_r <= '0;
+            bum_axi_awsize_r <= '0;
+            bum_axi_awburst_r <= '0;
+
+            bum_axi_wvalid_r <= '0;
+            bum_axi_wdata_r <= '0;
+            bum_axi_wstrb_r <= '0;
+            bum_axi_wlast_r <= '0;
+
+            m_axi_awvalid <= 0;
+            m_axi_awid    <= '{default: '0};
+            m_axi_awaddr  <= '{default: '0};
+            m_axi_awlen   <= '{default: '0};
+            m_axi_awsize  <= '{default: '0};
+            m_axi_awburst <= '{default: '0};
+
+            m_axi_wvalid <= 0;
+            m_axi_wdata <= '{default: '0};
+            m_axi_wstrb <= '{default: '0};
+            m_axi_wlast <= '{default: '0};
+        end else begin
+            bum_axi_arvalid_r   <= bum_axi_arvalid;
+            bum_axi_arid_r      <= bum_axi_arid;
+            bum_axi_araddr_r    <= bum_axi_araddr;
+            bum_axi_arlen_r     <= bum_axi_arlen;
+            bum_axi_arsize_r    <= bum_axi_arsize;
+            bum_axi_arburst_r   <= bum_axi_arburst;
+
+            m_axi_arvalid <= m_axi_arvalid_w;
+            m_axi_arid    <= m_axi_arid_w;
+            m_axi_araddr  <= m_axi_araddr_w;
+            m_axi_arlen   <= m_axi_arlen_w;
+            m_axi_arsize  <= m_axi_arsize_w;
+            m_axi_arburst <= m_axi_arburst_w;
+
+            bum_axi_awvalid_r   <= bum_axi_awvalid;
+            bum_axi_awid_r      <= bum_axi_awid;
+            bum_axi_awaddr_r    <= bum_axi_awaddr;
+            bum_axi_awlen_r     <= bum_axi_awlen;
+            bum_axi_awsize_r    <= bum_axi_awsize;
+            bum_axi_awburst_r   <= bum_axi_awburst;
+
+            bum_axi_wvalid_r <= bum_axi_wvalid;
+            bum_axi_wdata_r <= bum_axi_wdata;
+            bum_axi_wstrb_r <= bum_axi_wstrb;
+            bum_axi_wlast_r <= bum_axi_wlast;
+
+            m_axi_awvalid <= m_axi_awvalid_w;
+            m_axi_awid    <= m_axi_awid_w;
+            m_axi_awaddr  <= m_axi_awaddr_w;
+            m_axi_awlen   <= m_axi_awlen_w;
+            m_axi_awsize  <= m_axi_awsize_w;
+            m_axi_awburst <= m_axi_awburst_w;
+
+            m_axi_wvalid <= m_axi_wvalid_w;
+            m_axi_wdata  <= m_axi_wdata_w;
+            m_axi_wstrb  <= m_axi_wstrb_w;
+            m_axi_wlast  <= m_axi_wlast_w;
+
+        end
+    end
+
+    //-----------------------------------------------
+    //Stage 0: AXI Read address buffer
+    //-----------------------------------------------
+    always_comb begin
+        busARRdy_o = 0;
+        bum_axi_arvalid = bum_axi_arvalid_r;
+        bum_axi_arid = bum_axi_arid_r;
+        bum_axi_araddr = bum_axi_araddr_r;
+        bum_axi_arlen = bum_axi_arlen_r;
+        bum_axi_arsize = bum_axi_arsize_r;
+        bum_axi_arburst = bum_axi_arburst_r;
+
+        for (int i = 0; i < M; i++) begin
+            if (busARVld_i[i] && (~bum_axi_arvalid_r[i] || clr_bum_arvalid[i])) begin
+                busARRdy_o[i] = 1'b1;
+                bum_axi_arvalid[i] = 1'b1;
+                bum_axi_arid = busARId_i;
+                bum_axi_araddr = busARAddr_i;
+                bum_axi_arlen = busARLen_i;
+                bum_axi_arsize = busARSz_i;
+                bum_axi_arburst = busARBurst_i;
+            end
+            else if (clr_bum_arvalid[i]) begin
+                bum_axi_arvalid[i] = 1'b0;
+            end
+        end
+    end
+
+    //-----------------------------------------------
+    //Stage 1: AXI Read address output buffer
+    //-----------------------------------------------
+    always_comb begin
+        clr_bum_arvalid = 0;
+
+        m_axi_arvalid_w = m_axi_arvalid;
+        m_axi_arid_w    = m_axi_arid;
+        m_axi_araddr_w  = m_axi_araddr;
+        m_axi_arlen_w   = m_axi_arlen;
+        m_axi_arsize_w  = m_axi_arsize;
+        m_axi_arburst_w = m_axi_arburst;
+
+        for (int i=0; i<M; i++) begin
+            if (m_axi_arvalid[i] && m_axi_arready[i]) begin
+                m_axi_arvalid_w[i] = 1'b0;
+                m_axi_arid_w[i]    = 0;
+                m_axi_araddr_w[i]  = 0;
+                m_axi_arlen_w[i]   = 0;
+                m_axi_arsize_w[i]  = 0;
+                m_axi_arburst_w[i] = 0;
+            end
+        end
+
+        for (int i = 0; i < M; i++) begin
+            if (~m_axi_arvalid_w[i] && bum_axi_arvalid_r[i]) begin
+                clr_bum_arvalid[i] = 1;
+                m_axi_arvalid_w[i] = 1;
+                m_axi_arid_w[i]    = bum_axi_arid_r;
+                m_axi_araddr_w[i]  = bum_axi_araddr_r;
+                m_axi_arlen_w[i]   = bum_axi_arlen_r;
+                m_axi_arsize_w[i]  = bum_axi_arsize_r;
+                m_axi_arburst_w[i] = bum_axi_arburst_r;
+            end
+        end
+    end
 
 
+    //-----------------------------------------------
+    //Stage 0: AXI Write address buffer
+    //-----------------------------------------------
+    always_comb begin
+        busAWRdy_o = 0;
+        bum_axi_awvalid = bum_axi_awvalid_r;
+        bum_axi_awid = bum_axi_awid_r;
+        bum_axi_awaddr = bum_axi_awaddr_r;
+        bum_axi_awlen = bum_axi_awlen_r;
+        bum_axi_awsize = bum_axi_awsize_r;
+        bum_axi_awburst = bum_axi_awburst_r;
+
+        for (int i = 0; i < M; i++) begin
+            if (busAWVld_i[i] && (~bum_axi_awvalid_r[i] || clr_bum_awvalid[i])) begin
+                busAWRdy_o[i] = 1'b1;
+                bum_axi_awvalid[i] = 1'b1;
+                bum_axi_awid = busAWId_i;
+                bum_axi_awaddr = busAWAddr_i;
+                bum_axi_awlen = busAWLen_i;
+                bum_axi_awsize = busAWSz_i;
+                bum_axi_awburst = busAWBurst_i;
+            end
+            else if (clr_bum_awvalid[i]) begin
+                bum_axi_awvalid[i] = 1'b0;
+            end
+        end
+    end
+
+    //-----------------------------------------------
+    //Stage 1: AXI Write address output buffer
+    //-----------------------------------------------
+    always_comb begin
+        clr_bum_awvalid = 0;
+
+        m_axi_awvalid_w = m_axi_awvalid;
+        m_axi_awid_w    = m_axi_awid;
+        m_axi_awaddr_w  = m_axi_awaddr;
+        m_axi_awlen_w   = m_axi_awlen;
+        m_axi_awsize_w  = m_axi_awsize;
+        m_axi_awburst_w = m_axi_awburst;
+
+        for (int i=0; i<M; i++) begin
+            if (m_axi_awvalid[i] && m_axi_awready[i]) begin
+                m_axi_awvalid_w[i] = 1'b0;
+                m_axi_awid_w[i]    = 0;
+                m_axi_awaddr_w[i]  = 0;
+                m_axi_awlen_w[i]   = 0;
+                m_axi_awsize_w[i]  = 0;
+                m_axi_awburst_w[i] = 0;
+            end
+        end
+
+        for (int i = 0; i < M; i++) begin
+            if (~m_axi_awvalid_w[i] && bum_axi_awvalid_r[i]) begin
+                clr_bum_awvalid[i] = 1;
+                m_axi_awvalid_w[i] = 1;
+                m_axi_awid_w[i]    = bum_axi_awid_r;
+                m_axi_awaddr_w[i]  = bum_axi_awaddr_r;
+                m_axi_awlen_w[i]   = bum_axi_awlen_r;
+                m_axi_awsize_w[i]  = bum_axi_awsize_r;
+                m_axi_awburst_w[i] = bum_axi_awburst_r;
+            end
+        end
+    end
+
+    //-----------------------------------------------
+    //Stage 0: AXI Write data input buffer
+    //-----------------------------------------------
+    always_comb begin
+        busWRdy_o = 0;
+
+        bum_axi_wvalid = bum_axi_wvalid_r;
+        bum_axi_wdata = bum_axi_wdata_r;
+        bum_axi_wstrb = bum_axi_wstrb_r;
+        bum_axi_wlast = bum_axi_wlast_r;
+
+        for (int i = 0; i < M; i++) begin
+            if (busWVld_i[i] && (~bum_axi_wvalid_r[i] || clr_bum_wvalid[i])) begin
+                busWRdy_o[i] = 1'b1;
+                bum_axi_wvalid[i] = 1'b1;
+                bum_axi_wdata = busWData_i;
+                bum_axi_wstrb = busWStrb_i;
+                bum_axi_wlast = busWLast_i;
+            end
+            else if (clr_bum_wvalid[i]) begin
+                bum_axi_wvalid[i] = 1'b0;
+            end
+        end
+    end
+
+    //-----------------------------------------------
+    //Stage 1: AXI Write data output buffer
+    //-----------------------------------------------
+    always_comb begin
+        clr_bum_wvalid = 0;
+
+        m_axi_wvalid_w = m_axi_wvalid;
+        m_axi_wdata_w = m_axi_wdata;
+        m_axi_wstrb_w = m_axi_wstrb;
+        m_axi_wlast_w = m_axi_wlast;
+
+        for (int i=0; i<M; i++) begin
+            if (m_axi_wvalid[i] && m_axi_wready[i]) begin
+                m_axi_wvalid_w[i] = 1'b0;
+                m_axi_wdata_w[i] = 0;
+                m_axi_wstrb_w[i] = 0;
+                m_axi_wlast_w[i] = 0;
+            end
+        end
+
+        for (int i = 0; i < M; i++) begin
+            if (~m_axi_wvalid_w[i] && bum_axi_wvalid_r[i]) begin
+                clr_bum_wvalid[i] = 1;
+                m_axi_wvalid_w[i] = 1;
+                m_axi_wdata_w[i] = bum_axi_wdata_r;
+                m_axi_wstrb_w[i] = bum_axi_wstrb_r;
+                m_axi_wlast_w[i] = bum_axi_wlast_r;
+            end
+        end
+    end
 
     // RID table to track master destination for read responses
     arbitrated_dual_port_ram #(
@@ -309,10 +522,10 @@ end
             for (int i = 0; i < M; i++) begin
                 if (rid_valid[i]) begin
                     rtargetVld_r[i] <= 1'b1;
-                    rtargetBuf_r[i] <= rid_dest[i];
+                    rtargetBuf_r[i] <= rid_dest;
                 end
                 if (bid_valid[i]) begin
-                    wtargetBuf_r[i] <= bid_dest[i];
+                    wtargetBuf_r[i] <= bid_dest;
                 end
             end
         end

@@ -15,22 +15,22 @@ add wave -noupdate -group m_axi_rd /tb_axi4_switch/dut/m_axi_rlast
 add wave -noupdate -group m_axi_rd /tb_axi4_switch/dut/m_axi_rresp
 add wave -noupdate -group m_axi_rd /tb_axi4_switch/dut/m_axi_rdata
 add wave -noupdate -group m_axi_rd /tb_axi4_switch/dut/m_axi_rid
-add wave -noupdate -expand -group m_axi_wr -expand /tb_axi4_switch/dut/m_axi_awready
-add wave -noupdate -expand -group m_axi_wr -expand /tb_axi4_switch/dut/m_axi_awvalid
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_awaddr
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_awburst
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_awid
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_awlen
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_awsize
-add wave -noupdate -expand -group m_axi_wr -expand /tb_axi4_switch/dut/m_axi_wready
-add wave -noupdate -expand -group m_axi_wr -expand /tb_axi4_switch/dut/m_axi_wvalid
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_wlast
-add wave -noupdate -expand -group m_axi_wr -expand /tb_axi4_switch/dut/m_axi_wstrb
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_wdata
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_bready
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_bvalid
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_bresp
-add wave -noupdate -expand -group m_axi_wr /tb_axi4_switch/dut/m_axi_bid
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_awready
+add wave -noupdate -group m_axi_wr -expand /tb_axi4_switch/dut/m_axi_awvalid
+add wave -noupdate -group m_axi_wr -expand /tb_axi4_switch/dut/m_axi_awaddr
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_awburst
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_awid
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_awlen
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_awsize
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_wready
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_wvalid
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_wlast
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_wstrb
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_wdata
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_bready
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_bvalid
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_bresp
+add wave -noupdate -group m_axi_wr /tb_axi4_switch/dut/m_axi_bid
 add wave -noupdate -group s_axi_rd /tb_axi4_switch/dut/s_axi_arready
 add wave -noupdate -group s_axi_rd /tb_axi4_switch/dut/s_axi_arvalid
 add wave -noupdate -group s_axi_rd /tb_axi4_switch/dut/s_axi_araddr
@@ -243,16 +243,46 @@ add wave -noupdate -group master_switch /tb_axi4_switch/dut/u_master_switch/rtar
 add wave -noupdate -group master_switch /tb_axi4_switch/dut/u_master_switch/wtarget
 add wave -noupdate -group master_switch /tb_axi4_switch/dut/u_master_switch/wtargetBuf_r
 add wave -noupdate -group master_switch /tb_axi4_switch/dut/u_master_switch/wtargetVld_r
-add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/grantRdy_o
-add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/srcVld_i
-add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/srcTarget_i
-add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/srcDat_i
-add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstRdy_i
-add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstVld_o
-add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstSrc_o
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/clk
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/dstDat_o
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/dstRdy_i
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/dstSrc_o
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/dstVld_o
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/grantRdy_o
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/srcDat_i
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/srcTarget_i
+add wave -noupdate -group aw_chan_arb /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/srcVld_i
+add wave -noupdate {/tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstRdy_i[2]}
+add wave -noupdate {/tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstVld_o[2]}
 add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstDat_o
+add wave -noupdate -divider {New Divider}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_awready[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_awvalid[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_awaddr[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_awlen[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_wready[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_wvalid[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_wlast[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_wstrb[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_wdata[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_bready[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_bvalid[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_bresp[1]}
+add wave -noupdate {/tb_axi4_switch/dut/m_axi_bid[1]}
+add wave -noupdate -group w_chan_arb /tb_axi4_switch/dut/u_slave_switch/w_arbiter/clk
+add wave -noupdate -group w_chan_arb -expand /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstRdy_i
+add wave -noupdate -group w_chan_arb /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstSrc_o
+add wave -noupdate -group w_chan_arb /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstDat_o
+add wave -noupdate -group w_chan_arb -expand /tb_axi4_switch/dut/u_slave_switch/w_arbiter/dstVld_o
+add wave -noupdate -group w_chan_arb /tb_axi4_switch/dut/u_slave_switch/w_arbiter/grantRdy_o
+add wave -noupdate -group w_chan_arb /tb_axi4_switch/dut/u_slave_switch/w_arbiter/srcDat_i
+add wave -noupdate -group w_chan_arb /tb_axi4_switch/dut/u_slave_switch/w_arbiter/srcTarget_i
+add wave -noupdate -group w_chan_arb /tb_axi4_switch/dut/u_slave_switch/w_arbiter/srcVld_i
+add wave -noupdate /tb_axi4_switch/m_axi_wdata_run
+add wave -noupdate /tb_axi4_switch/s_axi_bready
+add wave -noupdate /tb_axi4_switch/s_axi_bready_r
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 3} {474000 ps} 0}
+WaveRestoreCursors {{Cursor 3} {2536785215 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 255
 configure wave -valuecolwidth 81
@@ -268,4 +298,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {399337 ps} {547404 ps}
+WaveRestoreZoom {0 ps} {1024800 ps}
