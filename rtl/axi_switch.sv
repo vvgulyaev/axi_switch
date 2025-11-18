@@ -115,12 +115,18 @@ module axi_switch #(
     logic [2:0]      s_axi_arsize_u[N];
     logic [1:0]      s_axi_arburst_u[N];
 
+    logic [N-1:0]    s_axi_awvalid_r;
+    logic [N-1:0]    s_axi_awready_r;
+    logic [N-1:0]    s_axi_bvalid_r;
+    logic [N-1:0]    s_axi_bready_r;
+    logic [N-1:0]    s_axi_awvalid_w;
     logic [AW-1:0]   s_axi_awaddr_u[N];
     logic [IDW-1:0]  s_axi_awid_u[N];
     logic [7:0]      s_axi_awlen_u[N];
     logic [2:0]      s_axi_awsize_u[N];
     logic [1:0]      s_axi_awburst_u[N];
 
+    logic [N-1:0]    s_axi_wvalid_w;
     logic [DW-1:0]   s_axi_wdata_u[N];
     logic [DW/8-1:0] s_axi_wstrb_u[N];
     logic            s_axi_wlast_u[N];
@@ -265,6 +271,61 @@ module axi_switch #(
     assign busAWDst = busAWAddr[AW-1 : AW-LOG_M];
     assign busWDst = busAWAddr[AW-1 : AW-LOG_M]; // Use AW address for W destination
 
+    logic [N-1:0]             wr_run_src, wr_run_src_r;
+    logic [LOG_N-1:0]         cur_wr_src[M], cur_wr_src_r[M];
+    logic [M-1:0]             wr_run_dst, wr_run_dst_r;
+    logic [LOG_M-1:0]         cur_wr_dst[N], cur_wr_dst_r[N];
+
+    always_ff @(posedge clk or negedge rstn) begin
+        if (~rstn) begin
+            s_axi_awvalid_r <= 0;
+            s_axi_awready_r <= 0;
+            s_axi_bvalid_r <= 0;
+            s_axi_bready_r <= 0;
+            cur_wr_src_r <= '{default: '0};
+            wr_run_src_r <= 0;
+            cur_wr_dst_r <= '{default: '0};
+            wr_run_dst_r <= 0;
+        end
+        else begin
+            s_axi_awvalid_r <= s_axi_awvalid;
+            s_axi_awready_r <= s_axi_awready;
+            s_axi_bvalid_r <= s_axi_bvalid;
+            s_axi_bready_r <= s_axi_bready;
+            cur_wr_src_r <= cur_wr_src;
+            wr_run_src_r <= wr_run_src;
+            cur_wr_dst_r <= cur_wr_dst;
+            wr_run_dst_r <= wr_run_dst;
+        end
+    end
+
+    always_comb begin
+        for (int i=0; i<N; i++) begin
+            cur_wr_dst[i] = s_axi_awaddr[i][AW-1 : AW-LOG_M];
+            s_axi_awvalid_w[i] = (s_axi_awvalid[i] && ~wr_run_dst_r[cur_wr_dst[i]]);
+            s_axi_wvalid_w[i] = (s_axi_wvalid[i] && wr_run_src_r[i]);
+        end
+
+        wr_run_dst = wr_run_dst_r;
+        wr_run_src = wr_run_src_r;
+        cur_wr_src = cur_wr_src;
+        for (int i=0; i<N; i++) begin
+            if (s_axi_awvalid_r[i] && s_axi_awready_r[i]) begin
+                wr_run_dst[cur_wr_dst_r[i]] = 1;
+                cur_wr_src[cur_wr_dst_r[i]] = i;
+                wr_run_src[i] = 1;
+            end
+            else if (s_axi_bvalid_r[i] && s_axi_bready_r[i]) begin
+                wr_run_src[i] = 0;
+                for (int j=0; j<M; j++) begin
+                    if (wr_run_dst_r[j] && (cur_wr_src_r[j]==i)) begin
+                        wr_run_dst[j] = 0;
+                    end
+                end
+            end
+        end
+    end
+
     // routing from slave ports connected to master modules
     slave_switch #(
         .N          (N),
@@ -276,39 +337,39 @@ module axi_switch #(
         .clk                (clk),
         .rstn               (rstn),
         // Master interfaces
-        .s_axi_arvalid      ( s_axi_arvalid),
-        .s_axi_arready      ( s_axi_arready),
-        .s_axi_araddr       ( s_axi_araddr_u),
-        .s_axi_arid         ( s_axi_arid_u),
-        .s_axi_arlen        ( s_axi_arlen_u),
-        .s_axi_arsize       ( s_axi_arsize_u),
-        .s_axi_arburst      ( s_axi_arburst_u),
+        .s_axi_arvalid      (s_axi_arvalid),
+        .s_axi_arready      (s_axi_arready),
+        .s_axi_araddr       (s_axi_araddr_u),
+        .s_axi_arid         (s_axi_arid_u),
+        .s_axi_arlen        (s_axi_arlen_u),
+        .s_axi_arsize       (s_axi_arsize_u),
+        .s_axi_arburst      (s_axi_arburst_u),
 
-        .s_axi_awvalid      ( s_axi_awvalid),
-        .s_axi_awready      ( s_axi_awready),
-        .s_axi_awaddr       ( s_axi_awaddr_u),
-        .s_axi_awid         ( s_axi_awid_u),
-        .s_axi_awlen        ( s_axi_awlen_u),
-        .s_axi_awsize       ( s_axi_awsize_u),
-        .s_axi_awburst      ( s_axi_awburst_u),
+        .s_axi_awvalid      (s_axi_awvalid_w),
+        .s_axi_awready      (s_axi_awready),
+        .s_axi_awaddr       (s_axi_awaddr_u),
+        .s_axi_awid         (s_axi_awid_u),
+        .s_axi_awlen        (s_axi_awlen_u),
+        .s_axi_awsize       (s_axi_awsize_u),
+        .s_axi_awburst      (s_axi_awburst_u),
 
-        .s_axi_wvalid       ( s_axi_wvalid),
-        .s_axi_wready       ( s_axi_wready),
-        .s_axi_wdata        ( s_axi_wdata_u),
-        .s_axi_wstrb        ( s_axi_wstrb_u),
-        .s_axi_wlast        ( s_axi_wlast_u),
+        .s_axi_wvalid       (s_axi_wvalid_w),
+        .s_axi_wready       (s_axi_wready),
+        .s_axi_wdata        (s_axi_wdata_u),
+        .s_axi_wstrb        (s_axi_wstrb_u),
+        .s_axi_wlast        (s_axi_wlast_u),
 
-        .s_axi_rvalid       ( s_axi_rvalid),
-        .s_axi_rready       ( s_axi_rready),
-        .s_axi_rdata        ( s_axi_rdata_unpacked),
-        .s_axi_rid          ( s_axi_rid_unpacked),
-        .s_axi_rresp        ( s_axi_rresp_unpacked),
-        .s_axi_rlast        ( s_axi_rlast_unpacked),
+        .s_axi_rvalid       (s_axi_rvalid),
+        .s_axi_rready       (s_axi_rready),
+        .s_axi_rdata        (s_axi_rdata_unpacked),
+        .s_axi_rid          (s_axi_rid_unpacked),
+        .s_axi_rresp        (s_axi_rresp_unpacked),
+        .s_axi_rlast        (s_axi_rlast_unpacked),
 
-        .s_axi_bvalid       ( s_axi_bvalid),
-        .s_axi_bready       ( s_axi_bready),
-        .s_axi_bid          ( s_axi_bid_unpacked),
-        .s_axi_bresp        ( s_axi_bresp_unpacked),
+        .s_axi_bvalid       (s_axi_bvalid),
+        .s_axi_bready       (s_axi_bready),
+        .s_axi_bid          (s_axi_bid_unpacked),
+        .s_axi_bresp        (s_axi_bresp_unpacked),
 
         // Arbitrated channel buses
         .busARVld_o         (busARVld),

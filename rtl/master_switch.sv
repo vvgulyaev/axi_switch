@@ -412,7 +412,14 @@ module master_switch #(
         bum_axi_wlast = bum_axi_wlast_r;
 
         for (int i = 0; i < M; i++) begin
-            if (busWVld_i[i] && (~bum_axi_wvalid_r[i] || clr_bum_wvalid[i])) begin
+            if (clr_bum_wvalid[i]) begin
+                bum_axi_wvalid[i] = 1'b0;
+            end
+        end
+
+
+        for (int i = 0; i < M; i++) begin
+            if (busWVld_i[i] && (bum_axi_wvalid==0)) begin
                 busWRdy_o[i] = 1'b1;
                 bum_axi_wvalid[i] = 1'b1;
                 bum_axi_wdata = busWData_i;

@@ -90,7 +90,7 @@ module channel_arbiter #(
             int m;
             m = (rrPtr_r + i) % S;
             dstIdx = srcTarget_r[m];
-            if (srcVld_r[m] && ~dstVld[dstIdx]) begin
+            if (srcVld_r[m] && (dstVld==0)) begin
                 dstVld[dstIdx] = 1'b1;
                 dstDat = srcDat_r[m];
                 clrSrcVld[m] = 1;

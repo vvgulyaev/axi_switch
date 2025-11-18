@@ -253,7 +253,7 @@ module tb_axi4_switch;
     task automatic run_test();
         logic [M-1:0] wreq_done = {M{1'b1}};
         `TEST_LOG("run test");
-        wreq_done[0:0] = 0;
+        wreq_done[1:0] = 0;
         fork
             //----------------------
             M_AW_CH0: begin
@@ -271,7 +271,7 @@ module tb_axi4_switch;
             end
 
             //----------------------
-            /*M_AW_CH1: begin
+            M_AW_CH1: begin
                 m_axi_aw_thread(1);
                 wreq_done[1] = 1;
                 `TEST_LOG("M_AW_CH1 done");
@@ -283,7 +283,7 @@ module tb_axi4_switch;
             M_B_CH1: begin
                 m_axi_b_thread(1, wreq_done);
                 `TEST_LOG("M_B_CH1 done");
-            end*/
+            end
 
             //----------------------
             S_AW_CH0: begin
@@ -450,6 +450,8 @@ module tb_axi4_switch;
                 @(posedge clk);
             end
 
+            m_axi_wdata_run[master_id] = 1;
+
             trans.master_id = master_id;
             slave_id = $urandom_range(0, N-1);
             trans.slave_id = slave_id;
@@ -457,7 +459,7 @@ module tb_axi4_switch;
             // Generate random transaction parameters
             trans.addr = (slave_id << (AW - LOG_N)) | ($urandom & ((1 << (AW - LOG_N)) - 1));
             trans.id = master_id;
-            trans.len = $urandom_range(1, 256); // Burst length 1-16
+            trans.len = $urandom_range(1, 16); // Burst length 1-16
             trans.size = $urandom_range(0, $clog2(DW/8)); // Size up to bus width
             trans.burst = $urandom_range(0, 2); // FIXED, INCR, WRAP
             trans.beat_count = 0;
@@ -504,8 +506,7 @@ module tb_axi4_switch;
             @(posedge clk);
             if (master_write_trans_q[master_id].size() > 0) begin
                 trans = master_write_trans_q[master_id].pop_front();
-                m_axi_wdata_run[master_id] = 1;
-
+                //`TEST_LOG($sformatf("Master %0d: Write data", master_id));
                 for (int i = 0; i <= trans.len; i++) begin
                     if (RANDOM_M_AXI_WVALID) begin
                         pause_cycles($urandom_range(0, 16));
