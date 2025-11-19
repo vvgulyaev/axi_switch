@@ -136,14 +136,13 @@ module master_switch #(
     logic                    bum_axi_wlast, bum_axi_wlast_r;
 
     // Internal signals for tracking rid/bid lookups
-    logic [M-1:0]            rid_re;
     logic [M-1:0]            rid_valid;
     logic [LOG_N-1:0]        rid_dest;
     logic [M-1:0]            bid_re;
     logic [M-1:0]            bid_valid;
     logic [LOG_N-1:0]        bid_dest;
     reg [M-1:0]              rtargetVld_r, wtargetVld_r;  // Valid signals for target buffers
-    reg [LOG_N-1:0]          rtargetBuf_r[M], wtargetBuf_r[M];  // Target master matrix
+    reg [LOG_N-1:0]          rtargetBuf[M], wtargetBuf[M];  // Target master matrix
 
     logic [ID_WIDTH-1:0]     busAWId[1];
     logic [LOG_N-1:0]        busAWSrc[1];
@@ -167,19 +166,12 @@ module master_switch #(
     logic                     m_axi_wlast_w[M];
     logic [M-1:0]             clr_bum_wvalid;
 
+    logic [M-1:0]             m_axi_bvalid_w;
+    logic [M-1:0]             m_axi_rvalid_w;
+
 
     // Connect registered signals to outputs
     always_comb begin
-        for (int r = 0; r < M; r++) begin : gen_r_target
-            // Request lookup when valid response received without destination info
-            rid_re[r] = m_axi_rvalid[r] & ~rtargetVld_r[r];
-            // Set target based on lookup result
-            /*if (rid_valid[r]) begin
-                rtargetVld_r[r] = 1'b1;
-                rtargetBuf_r[r] = rid_dest;
-            end*/
-        end
-
         //avoid compilation errors at connecting to rid and bid tables
         busAWId[0] = busAWId_i;
         busAWSrc[0] = busAWSrc_i;
@@ -227,7 +219,8 @@ module master_switch #(
             m_axi_wdata <= '{default: '0};
             m_axi_wstrb <= '{default: '0};
             m_axi_wlast <= '{default: '0};
-        end else begin
+        end
+        else begin
             bum_axi_arvalid_r   <= bum_axi_arvalid;
             bum_axi_arid_r      <= bum_axi_arid;
             bum_axi_araddr_r    <= bum_axi_araddr;
@@ -265,7 +258,6 @@ module master_switch #(
             m_axi_wdata  <= m_axi_wdata_w;
             m_axi_wstrb  <= m_axi_wstrb_w;
             m_axi_wlast  <= m_axi_wlast_w;
-
         end
     end
 
@@ -322,7 +314,7 @@ module master_switch #(
         end
 
         for (int i = 0; i < M; i++) begin
-            if (~m_axi_arvalid_w[i] && bum_axi_arvalid_r[i]) begin
+            if (~m_axi_arvalid[i] && bum_axi_arvalid_r[i]) begin
                 clr_bum_arvalid[i] = 1;
                 m_axi_arvalid_w[i] = 1;
                 m_axi_arid_w[i]    = bum_axi_arid_r;
@@ -388,7 +380,7 @@ module master_switch #(
         end
 
         for (int i = 0; i < M; i++) begin
-            if (~m_axi_awvalid_w[i] && bum_axi_awvalid_r[i]) begin
+            if (~m_axi_awvalid[i] && bum_axi_awvalid_r[i]) begin
                 clr_bum_awvalid[i] = 1;
                 m_axi_awvalid_w[i] = 1;
                 m_axi_awid_w[i]    = bum_axi_awid_r;
@@ -465,20 +457,20 @@ module master_switch #(
 
     // RID table to track master destination for read responses
     arbitrated_dual_port_ram #(
-        .W      (1),                  // One write port (from AR channel)
-        .R      (M),                  // M read ports (one per slave)
-        .D      (2**ID_WIDTH),        // Depth based on ID width
-        .WIDTH  (LOG_N)           // Width to store master index
+        .W      (1),                // One write port (from AR channel)
+        .R      (M),                // M read ports (one per slave)
+        .D      (2**ID_WIDTH),      // Depth based on ID width
+        .WIDTH  (LOG_N)             // Width to store master index
     ) rid_table (
         .clk        (clk),
         .rstn       (rstn),
-        .we_i       (busARVld_i!=0),     // Write on valid AR transaction
-        .wadr_i     (busARId),     // Address = transaction ID
-        .wdat_i     (busARSrc),    // Data = source master index
-        .re_i       (rid_re),     // Read when lookup requested
+        .we_i       (busARVld_i!=0), // Write on valid AR transaction
+        .wadr_i     (busARId),       // Address = transaction ID
+        .wdat_i     (busARSrc),      // Data = source master index
+        .re_i       (m_axi_rvalid),  // Read when lookup requested
         .radr_i     (m_axi_rid),     // Address = response ID
         .rdat_o     (rid_dest),      // Data = destination master
-        .rdRdy_o    (rid_valid)     // Valid signal for lookup result
+        .rdRdy_o    (rid_valid)      // Valid signal for lookup result
     );
 
     // BID table to track master destination for write responses
@@ -486,58 +478,33 @@ module master_switch #(
         .W      (1),                  // One write port (from AW channel)
         .R      (M),                  // M read ports (one per slave)
         .D      (2**ID_WIDTH),        // Depth based on ID width
-        .WIDTH  (LOG_N)           // Width to store master index
+        .WIDTH  (LOG_N)               // Width to store master index
     ) bid_table (
         .clk        (clk),
         .rstn       (rstn),
-        .we_i       (busAWVld_i!=0),     // Write on valid AW transaction
-        .wadr_i     (busAWId),     // Address = transaction ID
-        .wdat_i     (busAWSrc),    // Data = source master index
+        .we_i       (busAWVld_i!=0),    // Write on valid AW transaction
+        .wadr_i     (busAWId),          // Address = transaction ID
+        .wdat_i     (busAWSrc),         // Data = source master index
         .re_i       (m_axi_bvalid),     // Read when lookup requested
-        .radr_i     (m_axi_bid),     // Address = response ID
-        .rdat_o     (bid_dest),      // Data = destination master
-        .rdRdy_o    (bid_valid)     // Valid signal for lookup result
+        .radr_i     (m_axi_bid),        // Address = response ID
+        .rdat_o     (bid_dest),         // Data = destination master
+        .rdRdy_o    (bid_valid)         // Valid signal for lookup result
     );
 
 
     // Read/write response target buffer
-    logic [LOG_N-1:0] rtarget, wtarget;
-
     always_comb begin
-        rtarget = '0;
-        wtarget = '0;
+        rtargetBuf = '{default: '0};
+        wtargetBuf = '{default: '0};
         for (int i = 0; i < M; i++) begin
-            if (m_axi_rvalid[i] & rtargetVld_r[i]) begin
-                rtarget = rtargetBuf_r[i];
+            if (rid_valid[i]) begin
+                rtargetBuf[i] = rid_dest;
             end
-            if (m_axi_bvalid[i] & wtargetVld_r[i]) begin
-                wtarget = wtargetBuf_r[i];
-            end
-        end
-    end
-    always_ff @(posedge clk or negedge rstn) begin
-        if (!rstn) begin
-            rtargetVld_r <= '0;
-            wtargetVld_r <= '0;
-            for (int i = 0; i < M; i++) begin
-                rtargetBuf_r[i] <= '0;
-                wtargetBuf_r[i] <= '0;
-            end
-        end else begin
-            rtargetVld_r <= rtargetVld_r | rid_valid;
-            wtargetVld_r <= wtargetVld_r | bid_valid;
-            for (int i = 0; i < M; i++) begin
-                if (rid_valid[i]) begin
-                    rtargetVld_r[i] <= 1'b1;
-                    rtargetBuf_r[i] <= rid_dest;
-                end
-                if (bid_valid[i]) begin
-                    wtargetBuf_r[i] <= bid_dest;
-                end
+            if (bid_valid[i]) begin
+                wtargetBuf[i] = bid_dest;
             end
         end
     end
-
 
     // Pack read data from all slaves
     logic [WIDTH+ID_WIDTH+2+1-1:0] r_src_data[M];
@@ -550,6 +517,8 @@ module master_switch #(
         end
     endgenerate
 
+    assign m_axi_rvalid_w = m_axi_rvalid & rid_valid;
+
     // R channel arbiter
     channel_arbiter #(
         .S(M),                 // M slaves as sources
@@ -558,10 +527,10 @@ module master_switch #(
     ) r_arbiter (
         .clk            (clk),
         .rstn           (rstn),
-        .srcVld_i       (m_axi_rvalid & rtargetVld_r), // Only valid if target known
+        .srcVld_i       (m_axi_rvalid_w), // Only valid if target known
         .grantRdy_o     (m_axi_rready),
         .srcDat_i       (r_src_data),
-        .srcTarget_i    (rtargetBuf_r),
+        .srcTarget_i    (rtargetBuf),
         .dstVld_o       (busRVld_o),
         .dstRdy_i       (busRRdy_i),
         .dstDat_o       ({busRData_o, busRId_o, busRResp_o, busRLast_o})
@@ -579,6 +548,8 @@ module master_switch #(
         end
     endgenerate
 
+    assign m_axi_bvalid_w = m_axi_bvalid & bid_valid;
+
     // B channel arbiter
     channel_arbiter #(
         .S      (M),          // M slaves as sources
@@ -587,11 +558,11 @@ module master_switch #(
     ) b_arbiter (
         .clk            (clk),
         .rstn           (rstn),
-        .srcVld_i       (m_axi_bvalid & wtargetVld_r), // Only valid if write target is known
+        .srcVld_i       (m_axi_bvalid_w), // Only valid if write target is known
         .grantRdy_o     (m_axi_bready),
         .srcDat_i       (b_src_data),
         //input  [LOG_N-1:0]              srcTarget_i[M],      // Destination indices from sources
-        .srcTarget_i    (wtargetBuf_r),
+        .srcTarget_i    (wtargetBuf),
         .dstVld_o       (busBVld_o),
         .dstRdy_i       (busBRdy_i),
         .dstDat_o       ({busBId_o, busBResp_o})

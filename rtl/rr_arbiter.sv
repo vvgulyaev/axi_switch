@@ -11,27 +11,28 @@ module rr_arbiter #(
     output logic [N-1:0]            gnt         // Ready signals to requesters
 );
 
-reg [LOG_N-1:0] rrptr, rrptr_r, m;
+    reg [LOG_N-1:0] rrptr, rrptr_r, m;
 
-always_comb begin
-    gnt = 0;
-    rrptr = rrptr_r;
-    for (int i = N-1; i >=0; i--) begin
-        m = (rrptr_r + i) % N;
-        if (req_i[m]) begin
-            gnt[m] = 1'b1;
-            gnt_idx = m;
-            rrptr = (m + 1) % N;
+    always_comb begin
+        gnt = 0;
+        rrptr = rrptr_r;
+        for (int i = N-1; i >=0; i--) begin
+            m = (rrptr_r + i) % N;
+            if (req_i[m]) begin
+                gnt[m] = 1'b1;
+                gnt_idx = m;
+                rrptr = (m + 1) % N;
+                break;
+            end
         end
     end
-end
 
-always_ff @(posedge clk or negedge rstn) begin
-    if (!rstn) begin
-        rrptr_r <= '0;
-    end else begin
-        rrptr_r <= rrptr;
+    always_ff @(posedge clk or negedge rstn) begin
+        if (!rstn) begin
+            rrptr_r <= '0;
+        end else begin
+            rrptr_r <= rrptr;
+        end
     end
-end
 
 endmodule

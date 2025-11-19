@@ -69,13 +69,13 @@ module arbitrated_dual_port_ram #(
         if (R > 1) begin: gen_read_arbiter
             // Read arbiter is needed
             rr_arbiter #(
-                .N(R),
-                .LOG_N(LOG_R)
+                .N      (R),
+                .LOG_N  (LOG_R)
             ) read_arbiter (
-                .clk(clk),
-                .rstn(rstn),
-                .req_i(re_i),
-                .gnt(rdGnt),
+                .clk    (clk),
+                .rstn   (rstn),
+                .req_i  (re_i),
+                .gnt    (rdGnt),
                 .gnt_idx(rdSel)
             );
         end else begin: gen_read_direct
@@ -105,10 +105,10 @@ module arbitrated_dual_port_ram #(
         wrRdy_o=wrGnt;
 
     // Read logic
-        re=|rdGnt;
-        raddr=radr_i[rdSel];
-        rdat_o=tableDat_r[raddr];
-        rdRdy_o=rdGnt;
+        re = |rdGnt;
+        raddr = radr_i[rdSel];
+        rdat_o = tableDat_r[raddr];
+        rdRdy_o = rdGnt;
     end
 
 endmodule

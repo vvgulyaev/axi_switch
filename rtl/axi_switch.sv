@@ -109,6 +109,12 @@ module axi_switch #(
 );
 
     // Unpack input arrays for module interfaces
+    logic [N-1:0]    s_axi_arvalid_r;
+    logic [N-1:0]    s_axi_arready_r;
+    logic [N-1:0]    s_axi_rvalid_r;
+    logic [N-1:0]    s_axi_rlast_r;
+    logic [N-1:0]    s_axi_rready_r;
+    logic [N-1:0]    s_axi_arvalid_w;
     logic [AW-1:0]   s_axi_araddr_u[N];
     logic [IDW-1:0]  s_axi_arid_u[N];
     logic [7:0]      s_axi_arlen_u[N];
@@ -276,6 +282,10 @@ module axi_switch #(
     logic [M-1:0]             wr_run_dst, wr_run_dst_r;
     logic [LOG_M-1:0]         cur_wr_dst[N], cur_wr_dst_r[N];
 
+    logic [LOG_N-1:0]         cur_rd_src[M], cur_rd_src_r[M];
+    logic [M-1:0]             rd_run_dst, rd_run_dst_r;
+    logic [LOG_M-1:0]         cur_rd_dst[N], cur_rd_dst_r[N];
+
     always_ff @(posedge clk or negedge rstn) begin
         if (~rstn) begin
             s_axi_awvalid_r <= 0;
@@ -286,6 +296,15 @@ module axi_switch #(
             wr_run_src_r <= 0;
             cur_wr_dst_r <= '{default: '0};
             wr_run_dst_r <= 0;
+
+            s_axi_arvalid_r <= 0;
+            s_axi_arready_r <= 0;
+            s_axi_rvalid_r <= 0;
+            s_axi_rlast_r <= 0;
+            s_axi_rready_r <= 0;
+            cur_rd_src_r <= '{default: '0};
+            cur_rd_dst_r <= '{default: '0};
+            rd_run_dst_r <= 0;
         end
         else begin
             s_axi_awvalid_r <= s_axi_awvalid;
@@ -296,19 +315,26 @@ module axi_switch #(
             wr_run_src_r <= wr_run_src;
             cur_wr_dst_r <= cur_wr_dst;
             wr_run_dst_r <= wr_run_dst;
+
+            s_axi_arvalid_r <= s_axi_arvalid;
+            s_axi_arready_r <= s_axi_arready;
+            s_axi_rvalid_r <= s_axi_rvalid;
+            s_axi_rlast_r <= s_axi_rlast;
+            s_axi_rready_r <= s_axi_rready;
+            cur_rd_src_r <= cur_rd_src;
+            cur_rd_dst_r <= cur_rd_dst;
+            rd_run_dst_r <= rd_run_dst;
         end
     end
 
     always_comb begin
-        for (int i=0; i<N; i++) begin
-            cur_wr_dst[i] = s_axi_awaddr[i][AW-1 : AW-LOG_M];
-            s_axi_awvalid_w[i] = (s_axi_awvalid[i] && ~wr_run_dst_r[cur_wr_dst[i]]);
-            s_axi_wvalid_w[i] = (s_axi_wvalid[i] && wr_run_src_r[i]);
-        end
-
         wr_run_dst = wr_run_dst_r;
         wr_run_src = wr_run_src_r;
         cur_wr_src = cur_wr_src;
+
+        rd_run_dst = rd_run_dst_r;
+        cur_rd_src = cur_rd_src;
+
         for (int i=0; i<N; i++) begin
             if (s_axi_awvalid_r[i] && s_axi_awready_r[i]) begin
                 wr_run_dst[cur_wr_dst_r[i]] = 1;
@@ -323,6 +349,27 @@ module axi_switch #(
                     end
                 end
             end
+
+            if (s_axi_arvalid_r[i] && s_axi_arready_r[i]) begin
+                rd_run_dst[cur_rd_dst_r[i]] = 1;
+                cur_rd_src[cur_rd_dst_r[i]] = i;
+            end
+            else if (s_axi_rvalid_r[i] && s_axi_rlast_r[i] && s_axi_rready_r[i]) begin
+                for (int j=0; j<M; j++) begin
+                    if (rd_run_dst_r[j] && (cur_rd_src_r[j]==i)) begin
+                        rd_run_dst[j] = 0;
+                    end
+                end
+            end
+        end
+
+        for (int i=0; i<N; i++) begin
+            cur_wr_dst[i] = s_axi_awaddr[i][AW-1 : AW-LOG_M];
+            s_axi_awvalid_w[i] = (s_axi_awvalid[i] && ~wr_run_dst[cur_wr_dst[i]]);
+            s_axi_wvalid_w[i] = (s_axi_wvalid[i] && wr_run_src[i]);
+
+            cur_rd_dst[i] = s_axi_araddr[i][AW-1 : AW-LOG_M];
+            s_axi_arvalid_w[i] = (s_axi_arvalid[i] && ~rd_run_dst[cur_rd_dst[i]]);
         end
     end
 
@@ -337,7 +384,7 @@ module axi_switch #(
         .clk                (clk),
         .rstn               (rstn),
         // Master interfaces
-        .s_axi_arvalid      (s_axi_arvalid),
+        .s_axi_arvalid      (s_axi_arvalid_w),
         .s_axi_arready      (s_axi_arready),
         .s_axi_araddr       (s_axi_araddr_u),
         .s_axi_arid         (s_axi_arid_u),

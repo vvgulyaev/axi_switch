@@ -198,10 +198,10 @@ module slave_switch #( // connect M masters and output 3 request channels to arb
     generate
         for (r_idx = 0; r_idx < N; r_idx++) begin : r_broadcast
             assign s_axi_rvalid[r_idx] = busRVld_i[r_idx];  // Valid to specific master
-            assign s_axi_rdata[r_idx] = busRData_i;         // Broadcast data to all masters
-            assign s_axi_rid[r_idx] = busRId_i;           // Broadcast ID to all masters
-            assign s_axi_rresp[r_idx] = busRResp_i;        // Broadcast response to all masters
-            assign s_axi_rlast[r_idx] = busRLast_i;        // Broadcast last to all masters
+            assign s_axi_rdata[r_idx] = busRVld_i[r_idx] ? busRData_i : 0;         // Broadcast data to all masters
+            assign s_axi_rid[r_idx] = busRVld_i[r_idx] ? busRId_i : 0;           // Broadcast ID to all masters
+            assign s_axi_rresp[r_idx] = busRVld_i[r_idx] ? busRResp_i : 0;        // Broadcast response to all masters
+            assign s_axi_rlast[r_idx] = busRVld_i[r_idx] & busRLast_i;        // Broadcast last to all masters
         end
     endgenerate
 

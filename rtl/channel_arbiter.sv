@@ -45,6 +45,7 @@ module channel_arbiter #(
     logic [WIDTH-1:0]     dstDat, dstDat_r;
     logic [LOG_S-1:0]     dstSrc, dstSrc_r;
     logic [D-1:0]         dstRdy_r;
+    logic [D-1:0]         target_busy, target_busy_r;
 
     //-----------------------------------------------
     //Stage 0: Input buffer
@@ -54,16 +55,20 @@ module channel_arbiter #(
         srcTarget = srcTarget_r;
         srcDat = srcDat_r;
         grantRdy_o = 0;
+        target_busy = target_busy_r;//avoid access to same dst from different src
 
         for (int i = 0; i < S; i++) begin
-            if ((~srcVld_r[i] || clrSrcVld[i]) && srcVld_i[i]) begin
+            if (clrSrcVld[i]) begin
+                srcVld[i] = 0;
+                target_busy[srcTarget_r[i]] = 0;
+            end
+
+            if ((~srcVld_r[i] && ~target_busy[srcTarget_i[i]]) && srcVld_i[i]) begin
                 grantRdy_o[i] = 1;
                 srcVld[i] = 1;
                 srcTarget[i] = srcTarget_i[i];
                 srcDat[i] = srcDat_i[i];
-            end
-            else if (clrSrcVld[i]) begin
-                srcVld[i] = 0;
+                target_busy[srcTarget_i[i]] = 1;
             end
         end
     end
@@ -115,6 +120,7 @@ module channel_arbiter #(
             srcVld_r <= 0;
             srcTarget_r <= '{default: '0};
             srcDat_r <= '{default: '0};
+            target_busy_r <= 0;
 
             rrPtr_r  <= 0;
 
@@ -127,6 +133,7 @@ module channel_arbiter #(
             srcVld_r <= srcVld;
             srcTarget_r <= srcTarget;
             srcDat_r <= srcDat;
+            target_busy_r <= target_busy;
 
             rrPtr_r <= rrPtr;
 

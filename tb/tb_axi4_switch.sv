@@ -18,12 +18,12 @@ module tb_axi4_switch;
     localparam int IDW = 4;         // ID width
     localparam int LOG_N = $clog2(N);
     localparam int LOG_M = $clog2(M);
-    localparam int NUM_TESTS = 100; // Number of random transactions
+    localparam int NUM_TESTS = 1000; // Number of random transactions
 
     localparam int      RESET_DUTY_CYCLES = 100;
     localparam realtime SYS_CLK_HPERIOD   = 2ns;
     localparam int      TIMEOUT = 1000;
-    localparam int      TEST_LEN = 100;
+    localparam int      TEST_LEN = 1000;
 
     localparam int RANDOM_M_AXI_ARVALID = 1;
     localparam int RANDOM_M_AXI_RREADY = 1;
@@ -59,6 +59,7 @@ module tb_axi4_switch;
     logic [1:0]             m_axi_rresp[M];
     logic [M-1:0]           m_axi_rlast;
     logic [M-1:0]           m_axi_rready = 0;
+    logic [M-1:0]           m_axi_rdata_run = 0;
 
     logic [M-1:0]           m_axi_awvalid = 0;
     logic [AW-1:0]          m_axi_awaddr[M] = '{default: '0};
@@ -84,6 +85,8 @@ module tb_axi4_switch;
     logic [N-1:0]           s_axi_arvalid;
     logic [AW-1:0]          s_axi_araddr[N];
     logic [IDW-1:0]         s_axi_arid[N];
+    logic [IDW-1:0]         s_axi_arid_r[N];
+    logic [IDW-1:0]         s_axi_arid_w[N];
     logic [1:0]             s_axi_arburst[N];
     logic [7:0]             s_axi_arlen[N];
     logic [2:0]             s_axi_arsize[N];
@@ -99,6 +102,8 @@ module tb_axi4_switch;
     logic [N-1:0]           s_axi_awvalid;
     logic [AW-1:0]          s_axi_awaddr[N];
     logic [IDW-1:0]         s_axi_awid[N];
+    logic [IDW-1:0]         s_axi_awid_r[N];
+    logic [IDW-1:0]         s_axi_awid_w[N];
     logic [1:0]             s_axi_awburst[N];
     logic [7:0]             s_axi_awlen[N];
     logic [2:0]             s_axi_awsize[N];
@@ -151,15 +156,41 @@ module tb_axi4_switch;
 
     transaction_t   slave_read_trans_q[N][$];
     transaction_t   ref_slave_ar_trans_q[N][$];
-    transaction_t   ref_slave_r_trans_q[N][$];
     transaction_t   ref_rresp_q[M][$];
 
-    always_ff @(posedge clk) begin
-        m_axi_arready_r <= m_axi_arready;
-        m_axi_awready_r <= m_axi_awready;
-        m_axi_wready_r <= m_axi_wready;
-        s_axi_rready_r <= s_axi_rready;
-        s_axi_bready_r <= s_axi_bready;
+    always_ff @(posedge clk or negedge rstn) begin
+        if (~rstn) begin
+            m_axi_arready_r <= 0;
+            m_axi_awready_r <= 0;
+            m_axi_wready_r <= 0;
+            s_axi_rready_r <= 0;
+            s_axi_bready_r <= 0;
+            s_axi_arid_r <= '{default: '0};
+            s_axi_awid_r <= '{default: '0};
+        end
+        else begin
+            m_axi_arready_r <= m_axi_arready;
+            m_axi_awready_r <= m_axi_awready;
+            m_axi_wready_r <= m_axi_wready;
+            s_axi_rready_r <= s_axi_rready;
+            s_axi_bready_r <= s_axi_bready;
+
+            s_axi_arid_r <= s_axi_arid_w;
+            s_axi_awid_r <= s_axi_awid_w;
+        end
+    end
+
+    always_comb begin
+        s_axi_arid_w = s_axi_arid_r;
+        s_axi_awid_w = s_axi_awid_r;
+        for (int i=0; i<N; i++) begin
+            if (s_axi_arvalid[i]) begin
+                s_axi_arid_w[i] <= s_axi_arid[i];
+            end
+            if (s_axi_awvalid[i]) begin
+                s_axi_awid_w[i] <= s_axi_awid[i];
+            end
+        end
     end
 
 
@@ -252,9 +283,99 @@ module tb_axi4_switch;
 
     task automatic run_test();
         logic [M-1:0] wreq_done = {M{1'b1}};
+        logic [M-1:0] rreq_done = {M{1'b1}};
         `TEST_LOG("run test");
-        wreq_done[1:0] = 0;
+        wreq_done[0:0] = 0;
+        rreq_done[1:0] = 0;
         fork
+            //----------------------
+            M_AR_CH0: begin
+                m_axi_ar_thread(0);
+                rreq_done[0] = 1;
+                `TEST_LOG("M_AR_CH0 done");
+            end
+
+            M_R_CH0: begin
+                m_axi_r_thread(0, rreq_done);
+                `TEST_LOG("M_R_CH0 done");
+            end
+
+            //----------------------
+            /*M_AR_CH1: begin
+                m_axi_ar_thread(1);
+                rreq_done[1] = 1;
+                `TEST_LOG("M_AR_CH1 done");
+            end
+
+            M_R_CH1: begin
+                m_axi_r_thread(1, rreq_done);
+                `TEST_LOG("M_R_CH1 done");
+            end
+
+            //----------------------
+            M_AR_CH2: begin
+                m_axi_ar_thread(2);
+                rreq_done[2] = 1;
+                `TEST_LOG("M_AR_CH2 done");
+            end
+
+            M_R_CH2: begin
+                m_axi_r_thread(2, rreq_done);
+                `TEST_LOG("M_R_CH2 done");
+            end
+
+            //----------------------
+            M_AR_CH3: begin
+                m_axi_ar_thread(3);
+                rreq_done[3] = 1;
+                `TEST_LOG("M_AR_CH3 done");
+            end
+
+            M_R_CH3: begin
+                m_axi_r_thread(3, rreq_done);
+                `TEST_LOG("M_R_CH3 done");
+            end*/
+
+            //----------------------
+            S_AR_CH0: begin
+                s_axi_ar_thread(0, rreq_done);
+                `TEST_LOG("S_AR_CH0 done");
+            end
+            S_R_CH0: begin
+                s_axi_r_thread(0, rreq_done);
+                `TEST_LOG("S_R_CH0 done");
+            end
+
+            //----------------------
+            S_AR_CH1: begin
+                s_axi_ar_thread(1, rreq_done);
+                `TEST_LOG("S_AR_CH1 done");
+            end
+            S_R_CH1: begin
+                s_axi_r_thread(1, rreq_done);
+                `TEST_LOG("S_R_CH1 done");
+            end
+
+            //----------------------
+            S_AR_CH2: begin
+                s_axi_ar_thread(2, rreq_done);
+                `TEST_LOG("S_AR_CH2 done");
+            end
+            S_R_CH2: begin
+                s_axi_r_thread(2, rreq_done);
+                `TEST_LOG("S_R_CH2 done");
+            end
+
+            //----------------------
+            S_AR_CH3: begin
+                s_axi_ar_thread(3, rreq_done);
+                `TEST_LOG("S_AR_CH3 done");
+            end
+            S_R_CH3: begin
+                s_axi_r_thread(3, rreq_done);
+                `TEST_LOG("S_R_CH3 done");
+            end
+
             //----------------------
             M_AW_CH0: begin
                 m_axi_aw_thread(0);
@@ -283,6 +404,36 @@ module tb_axi4_switch;
             M_B_CH1: begin
                 m_axi_b_thread(1, wreq_done);
                 `TEST_LOG("M_B_CH1 done");
+            end
+
+            //----------------------
+            M_AW_CH2: begin
+                m_axi_aw_thread(2);
+                wreq_done[2] = 1;
+                `TEST_LOG("M_AW_CH2 done");
+            end
+            M_W_CH2: begin
+                m_axi_w_thread(2, wreq_done);
+                `TEST_LOG("M_W_CH2 done");
+            end
+            M_B_CH2: begin
+                m_axi_b_thread(2, wreq_done);
+                `TEST_LOG("M_B_CH2 done");
+            end
+
+            //----------------------
+            M_AW_CH3: begin
+                m_axi_aw_thread(3);
+                wreq_done[3] = 1;
+                `TEST_LOG("M_AW_CH3 done");
+            end
+            M_W_CH3: begin
+                m_axi_w_thread(3, wreq_done);
+                `TEST_LOG("M_W_CH3 done");
+            end
+            M_B_CH3: begin
+                m_axi_b_thread(3, wreq_done);
+                `TEST_LOG("M_B_CH3 done");
             end
 
             //----------------------
@@ -339,6 +490,11 @@ module tb_axi4_switch;
                 pause_cycles($urandom_range(0, 16));
             end
 
+            while (m_axi_rdata_run[master_id]) begin
+                @(posedge clk);
+            end
+            m_axi_rdata_run[master_id] = 1;
+
             trans.master_id = master_id;
             slave_id = $urandom_range(0, N-1);
             trans.slave_id = slave_id;
@@ -346,7 +502,7 @@ module tb_axi4_switch;
             // Generate random transaction parameters
             trans.addr = (slave_id << (AW - LOG_N)) | ($urandom & ((1 << (AW - LOG_N)) - 1));
             trans.id = master_id;
-            trans.len = $urandom_range(1, 256); // Burst length 1-16
+            trans.len = $urandom_range(1, 16); // Burst length 1-16
             trans.size = $urandom_range(0, $clog2(DW/8)); // Size up to bus width
             trans.burst = $urandom_range(0, 2); // FIXED, INCR, WRAP
             trans.beat_count = 0;
@@ -365,12 +521,11 @@ module tb_axi4_switch;
             m_axi_arburst[master_id] = trans.burst;
             m_axi_arlen[master_id] = trans.len;
             m_axi_arsize[master_id] = trans.size;
-            `TEST_LOG($sformatf("Master %0d: Gen new axi wr: adr=0x%08X awlen=0x%0x", master_id, trans.addr, trans.len));
+            `TEST_LOG($sformatf("Test #%0d for master %0d: Gen new axi rd: adr=0x%08X arlen=0x%0x", t, master_id, trans.addr, trans.len));
 
 
             slave_read_trans_q[slave_id].push_back(trans);
             ref_slave_ar_trans_q[slave_id].push_back(trans);
-            ref_slave_r_trans_q[slave_id].push_back(trans);
             ref_rresp_q[master_id].push_back(trans);
 
             timeout_cnt = 0;
@@ -404,14 +559,14 @@ module tb_axi4_switch;
                         if (m_axi_rid[master_id] == ref_rresp_q[master_id][i].id) begin
                             rid = ref_rresp_q[master_id][i].id;
                             data = ref_rresp_q[master_id][i].data;
-                            `TEST_LOG($sformatf("Master %0d: Detected new axi read data: addr=0x%X id=0x%X len=0x%X", master_id, ref_rresp_q[master_id][i].addr, rid, data.size()));
+                            //`TEST_LOG($sformatf("Master %0d: Detected new axi read data: addr=0x%X id=0x%X len=0x%X", master_id, ref_rresp_q[master_id][i].addr, rid, data.size()));
                             ref_rresp_q[master_id].delete(i);
                             found = 1;
                             break;
                         end
                     end
                     if (!found) begin
-                        `TEST_LOG($sformatf("Slave %0d: Received AWID without matching in reference queue (%01h)", master_id, m_axi_rid[master_id]));
+                        `TEST_LOG($sformatf("Slave %0d: Received RID without matching in reference queue (%01h)", master_id, m_axi_rid[master_id]));
                         $stop;
                     end
                 end
@@ -419,7 +574,7 @@ module tb_axi4_switch;
                 ref_data = data.pop_front();
                 ref_rlast = (data.size() == 0) ? 1 : 0;
                 if (ref_data !== m_axi_rdata[master_id]) begin
-                    `TEST_LOG($sformatf("Master %0d: WDATA error expected: 0x%0h actual: 0x%0h", master_id, ref_data, m_axi_rdata[master_id]));
+                    `TEST_LOG($sformatf("Master %0d: RDATA error expected: 0x%0h actual: 0x%0h", master_id, ref_data, m_axi_rdata[master_id]));
                     $stop;
                 end
 
@@ -430,6 +585,7 @@ module tb_axi4_switch;
                 if (ref_rlast == 1'b1) begin
                     @(posedge clk);
                     m_axi_rready[master_id] = 0;
+                    m_axi_rdata_run[master_id] = 0;
                     found = 0;
                 end
             end
@@ -478,8 +634,7 @@ module tb_axi4_switch;
             m_axi_awburst[master_id] = trans.burst;
             m_axi_awlen[master_id] = trans.len;
             m_axi_awsize[master_id] = trans.size;
-            `TEST_LOG($sformatf("Master %0d: Gen new axi wr: adr=0x%08X awlen=0x%0x", master_id, trans.addr, trans.len));
-
+            `TEST_LOG($sformatf("Test #%0d for master %0d: Gen new axi wr: adr=0x%08X awlen=0x%0x", t, master_id, trans.addr, trans.len));
 
             master_write_trans_q[master_id].push_back(trans);
             ref_slave_aw_trans_q[slave_id].push_back(trans);
@@ -660,18 +815,18 @@ module tb_axi4_switch;
                 if (found==0) begin
                     //search received awid in reference queue
                     for (int i=0; i<ref_slave_w_trans_q[slave_id].size(); i++) begin
-                        if (s_axi_awid[slave_id] == ref_slave_w_trans_q[slave_id][i].id) begin
+                        if (s_axi_awid_w[slave_id] == ref_slave_w_trans_q[slave_id][i].id) begin
                             id = ref_slave_w_trans_q[slave_id][i].id;
                             data = ref_slave_w_trans_q[slave_id][i].data;
                             strb = ref_slave_w_trans_q[slave_id][i].strb;
-                            `TEST_LOG($sformatf("Slave %0d: Detected new axi wr: addr=0x%X id=0x%X len=0x%X", slave_id, ref_slave_w_trans_q[slave_id][i].addr, id, data.size()));
+                            //`TEST_LOG($sformatf("Slave %0d: Detected new axi wr: addr=0x%X id=0x%X len=0x%X", slave_id, ref_slave_w_trans_q[slave_id][i].addr, id, data.size()));
                             ref_slave_w_trans_q[slave_id].delete(i);
                             found = 1;
                             break;
                         end
                     end
                     if (!found) begin
-                        `TEST_LOG($sformatf("Slave %0d: Received AWID without matching in reference queue (%01h)", slave_id, s_axi_awid[slave_id]));
+                        `TEST_LOG($sformatf("Slave %0d: Received AWID without matching in reference queue (%01h)", slave_id, s_axi_awid_w[slave_id]));
                         $stop;
                     end
                 end
@@ -696,7 +851,6 @@ module tb_axi4_switch;
                 end
                 if (ref_wlast == 1'b1) begin
                     @(posedge clk);
-                    `TEST_LOG($sformatf("Slave %0d: Start bresp phase", slave_id));
                     s_axi_wready[slave_id] = 0;
                     s_axi_bid[slave_id] = id;
                     timeout_cnt = 0;
@@ -704,7 +858,6 @@ module tb_axi4_switch;
                         s_axi_bvalid[slave_id] = RANDOM_S_AXI_BVALID ? $urandom_range(0, 1) : 1;
                         @(posedge clk);
                     end while ((~s_axi_bvalid[slave_id] | ~s_axi_bready_r[slave_id]) && (timeout_cnt++ < 100));
-                    `TEST_LOG($sformatf("Slave %0d: Exit from bresp phase", slave_id));
                     if (timeout_cnt>=100) begin
                         `TEST_LOG($sformatf("Slave %0d: Write resp request to master %0d bready timed out", slave_id, id));
                         $stop;
