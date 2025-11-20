@@ -100,7 +100,7 @@ module channel_arbiter #(
                 dstDat = srcDat_r[m];
                 clrSrcVld[m] = 1;
                 dstSrc = m;
-                rrPtr = (m + 1) % S;
+                rrPtr = (rrPtr_r + 1) % S;
                 break;
             end
         end

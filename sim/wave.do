@@ -44,22 +44,22 @@ add wave -noupdate -expand -group s_axi_rd /tb_axi4_switch/dut/s_axi_rvalid
 add wave -noupdate -expand -group s_axi_rd /tb_axi4_switch/dut/s_axi_rlast
 add wave -noupdate -expand -group s_axi_rd /tb_axi4_switch/dut/s_axi_rresp
 add wave -noupdate -expand -group s_axi_rd /tb_axi4_switch/dut/s_axi_rid
-add wave -noupdate -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awready
-add wave -noupdate -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awvalid
-add wave -noupdate -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awaddr
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_awburst
-add wave -noupdate -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awid
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_awlen
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_awsize
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_wready
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_wvalid
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_wlast
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_wstrb
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_wdata
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_bready
-add wave -noupdate -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_bvalid
-add wave -noupdate -group s_axi_wr /tb_axi4_switch/dut/s_axi_bresp
-add wave -noupdate -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_bid
+add wave -noupdate -expand -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awready
+add wave -noupdate -expand -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awvalid
+add wave -noupdate -expand -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awaddr
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_awburst
+add wave -noupdate -expand -group s_axi_wr -expand /tb_axi4_switch/dut/s_axi_awid
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_awlen
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_awsize
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_wready
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_wvalid
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_wlast
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_wstrb
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_wdata
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_bready
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_bvalid
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_bresp
+add wave -noupdate -expand -group s_axi_wr /tb_axi4_switch/dut/s_axi_bid
 add wave -noupdate -group slave_switch /tb_axi4_switch/dut/u_slave_switch/ar_packed_data
 add wave -noupdate -group slave_switch /tb_axi4_switch/dut/u_slave_switch/ar_target
 add wave -noupdate -group slave_switch /tb_axi4_switch/dut/u_slave_switch/ar_unpacked_data
@@ -253,8 +253,19 @@ add wave -noupdate -group b_arb /tb_axi4_switch/dut/u_master_switch/b_arbiter/ds
 add wave -noupdate -group b_arb /tb_axi4_switch/dut/u_master_switch/b_arbiter/dstVld_o
 add wave -noupdate -group b_arb /tb_axi4_switch/dut/u_master_switch/b_arbiter/dstDat_o
 add wave -noupdate -group b_arb /tb_axi4_switch/dut/u_master_switch/b_arbiter/dstSrc_o
+add wave -noupdate -expand /tb_axi4_switch/dut/cur_rd_dst_r
+add wave -noupdate /tb_axi4_switch/dut/cur_rd_src_r
+add wave -noupdate {/tb_axi4_switch/dut/cur_wr_dst_r[3]}
+add wave -noupdate {/tb_axi4_switch/dut/wr_run_dst_r[1]}
+add wave -noupdate -expand /tb_axi4_switch/dut/cur_wr_dst_r
+add wave -noupdate /tb_axi4_switch/dut/cur_wr_src_r
+add wave -noupdate /tb_axi4_switch/dut/rd_run_dst_r
+add wave -noupdate -expand /tb_axi4_switch/dut/wr_run_dst_r
+add wave -noupdate -expand /tb_axi4_switch/dut/wr_run_src_r
+add wave -noupdate /tb_axi4_switch/dut/s_axi_awvalid_w
+add wave -noupdate /tb_axi4_switch/dut/u_slave_switch/aw_arbiter/rrPtr_r
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 3} {1832195 ps} 0}
+WaveRestoreCursors {{Cursor 3} {47838000 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 255
 configure wave -valuecolwidth 81
@@ -270,4 +281,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {0 ps} {520800 ps}
+WaveRestoreZoom {46982396 ps} {52093559 ps}

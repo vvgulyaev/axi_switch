@@ -22,8 +22,8 @@ module tb_axi4_switch;
 
     localparam int      RESET_DUTY_CYCLES = 100;
     localparam realtime SYS_CLK_HPERIOD   = 2ns;
-    localparam int      TIMEOUT = 1000;
-    localparam int      TEST_LEN = 1000;
+    localparam int      TIMEOUT = 10000;
+    localparam int      TEST_LEN = 10000;
 
     localparam int RANDOM_M_AXI_ARVALID = 1;
     localparam int RANDOM_M_AXI_RREADY = 1;
@@ -285,8 +285,8 @@ module tb_axi4_switch;
         logic [M-1:0] wreq_done = {M{1'b1}};
         logic [M-1:0] rreq_done = {M{1'b1}};
         `TEST_LOG("run test");
-        wreq_done[0:0] = 0;
-        rreq_done[1:0] = 0;
+        wreq_done[3:0] = 0;
+        rreq_done[3:0] = 0;
         fork
             //----------------------
             M_AR_CH0: begin
@@ -301,7 +301,7 @@ module tb_axi4_switch;
             end
 
             //----------------------
-            /*M_AR_CH1: begin
+            M_AR_CH1: begin
                 m_axi_ar_thread(1);
                 rreq_done[1] = 1;
                 `TEST_LOG("M_AR_CH1 done");
@@ -334,7 +334,7 @@ module tb_axi4_switch;
             M_R_CH3: begin
                 m_axi_r_thread(3, rreq_done);
                 `TEST_LOG("M_R_CH3 done");
-            end*/
+            end
 
             //----------------------
             S_AR_CH0: begin
@@ -523,8 +523,6 @@ module tb_axi4_switch;
             m_axi_arsize[master_id] = trans.size;
             `TEST_LOG($sformatf("Test #%0d for master %0d: Gen new axi rd: adr=0x%08X arlen=0x%0x", t, master_id, trans.addr, trans.len));
 
-
-            slave_read_trans_q[slave_id].push_back(trans);
             ref_slave_ar_trans_q[slave_id].push_back(trans);
             ref_rresp_q[master_id].push_back(trans);
 
@@ -670,6 +668,7 @@ module tb_axi4_switch;
                     m_axi_wdata[master_id] = trans.data[i];
                     m_axi_wstrb[master_id] = trans.strb[i];
                     m_axi_wlast[master_id] = (i == trans.len);
+                    //`TEST_LOG($sformatf("Master %0d: Write data[%0d/%d]=0x%h strb=%01h", master_id, i, trans.len+1, trans.data[i], trans.strb[i]));
                     @(posedge clk);
                     timeout_cnt = 0;
                     while ((!m_axi_wready_r[master_id]) && (timeout_cnt++ < TIMEOUT)) begin
@@ -726,6 +725,7 @@ module tb_axi4_switch;
                 found = 0;
                 for (int i=0; i<ref_slave_ar_trans_q[slave_id].size(); i++) begin
                     if (s_axi_arid[slave_id] === ref_slave_ar_trans_q[slave_id][i].id) begin
+                        slave_read_trans_q[slave_id].push_back(ref_slave_ar_trans_q[slave_id][i]);
                         ref_slave_ar_trans_q[slave_id].delete(i);
                         found = 1;
                         break;
@@ -742,7 +742,7 @@ module tb_axi4_switch;
     task automatic s_axi_r_thread(int slave_id, ref [M-1:0] req_done);
         transaction_t   trans;
         int             timeout_cnt;
-        while ((req_done!={M{1'b1}}) || slave_read_trans_q[slave_id].size() > 0) begin
+        while ((req_done!={M{1'b1}}) || (slave_read_trans_q[slave_id].size() > 0) ||  (ref_slave_ar_trans_q[slave_id].size() > 0)) begin
             @(posedge clk);
             if (slave_read_trans_q[slave_id].size() > 0) begin
                 trans = slave_read_trans_q[slave_id].pop_front();

@@ -333,7 +333,7 @@ module axi_switch #(
         cur_wr_src = cur_wr_src;
 
         rd_run_dst = rd_run_dst_r;
-        cur_rd_src = cur_rd_src;
+        cur_rd_src = cur_rd_src_r;
 
         for (int i=0; i<N; i++) begin
             if (s_axi_awvalid_r[i] && s_axi_awready_r[i]) begin
